@@ -15,11 +15,11 @@ export function WelcomeContributorsCard() {
                 <div className="welcome-contributors-heading">
                     <span className="welcome-contributors-kicker">
                         <UsersRound size={15} />
-                        Contributors
+                        Upstream Contributors
                     </span>
                     <div>
-                        <h3 id="welcome-contributors-title">一起把故事搬上银幕</h3>
-                        <p>{welcomeContributors.length} 位创作者参与产品、开发、测试与社区建设</p>
+                        <h3 id="welcome-contributors-title">感谢上游开源贡献者</h3>
+                        <p>{welcomeContributors.length} 位创作者参与上游产品、开发、测试与社区建设</p>
                     </div>
                     <a href={githubContributors} target="_blank" rel="noreferrer" aria-label="在 GitHub README 查看贡献者清单">
                         查看清单
@@ -41,7 +41,7 @@ export function WelcomeContributorsCard() {
                                         <span className="welcome-contributor-name">{contributor.name}</span>
                                         <span className="welcome-contributor-badge">
                                             <BadgeCheck size={13} />
-                                            项目发起者
+                                            上游项目发起者
                                         </span>
                                     </div>
                                     <p className="welcome-contributor-meta">{[contributor.wechat && `微信：${contributor.wechat}`, contributor.email].filter(Boolean).join(" · ")}</p>

@@ -1,30 +1,28 @@
 <p align="center">
-  <img src="web/public/logo.svg" width="88" alt="影策 logo">
+  <img src="web/public/logo.svg" width="88" alt="Mediacore logo">
 </p>
 
-<h1 align="center">影策</h1>
+<h1 align="center">Mediacore</h1>
 
 <p align="center">让一个故事，从文字走向银幕</p>
 
 <p align="center">
-  <a href="https://github.com/ddcat-ai/open-ai-canvas">GitHub</a> ·
+  <a href="https://github.com/NikitaMikhalkov/mediacore-canvas">GitHub</a> ·
   <a href="docs/content/docs/overview/features.mdx">功能</a> ·
   <a href="docs/content/docs/overview/quick-start.mdx">文档</a> ·
   <a href="SECURITY.md">安全策略</a>
 </p>
 
-影策是一个开源的 AI 影视与短剧创作工作台：用自由画布组织创作，用结构化工作流管理剧本、角色、场景和分镜，并通过统一的任务系统完成图片、视频、音频与文本生成。
+Mediacore 基于开源项目[影策](https://github.com/ddcat-ai/open-ai-canvas)，沿用自由画布、影视创作工作流和统一任务系统，以最小适配接入 4aion。第一阶段范围见[简化规格](docs/plans/mediacore-phase1-spec.md)。
 
 > 项目仍在快速开发，数据结构和外部接口可能调整。默认适合个人、本地或可信环境部署；未经安全配置，不要直接作为公网多人服务使用。
 
-在线演示：[https://yingce.tv](https://yingce.tv)
-
-账号/密码：test/test123456
+本工程部署域名为 `canvas.xingcyj.com`，待 Linux 部署任务将原 TOONFLOW 入口切换到 Mediacore；当前不代表已经上线。
 
 
 ## 赞助商
 
-感谢以下赞助商对影策项目的支持：
+以下保留上游影策项目的赞助记录，不代表 Mediacore 的供应商或合作关系：
 
 | LOGO | 类型 | 赞助商名称 | 说明 | 网站 |
 | --- | --- | --- | --- | --- |
@@ -88,8 +86,8 @@ GitHub 用户：[@TripsCoder](https://github.com/TripsCoder) · [@sugtex](https:
 ### 宿主机启动
 
 ```bash
-git clone https://github.com/ddcat-ai/open-ai-canvas.git
-cd open-ai-canvas
+git clone --branch mediacore/yingce-phase1-20261013 https://github.com/NikitaMikhalkov/mediacore-canvas.git
+cd mediacore-canvas
 
 # 使用 Git 忽略的目录保存本地开发数据和缓存
 mkdir -p .local/project-workbench-debug .local/cache/go-build .local/cache/go-mod
@@ -160,7 +158,7 @@ docker compose -f docker-compose.local.yml up -d --build
 适用于 Linux 云服务器。脚本会安装 Docker、拉取源码、生成受保护的 `.env`，并启动 PostgreSQL、Redis、后端和网页：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ddcat-ai/open-ai-canvas/main/scripts/install-server.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/NikitaMikhalkov/mediacore-canvas/mediacore/yingce-phase1-20261013/scripts/install-server.sh | sudo bash
 ```
 
 默认访问 `http://服务器IP:3000`。更新或排查：
@@ -175,12 +173,7 @@ sudo docker compose --env-file .env \
 
 ### 使用 GHCR 镜像
 
-不需要源码时，可使用镜像部署脚本：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ddcat-ai/open-ai-canvas/main/scripts/install-server-image.sh \
-  | sudo env CANVAS_IMAGE_TAG=v1.5.7.1 bash
-```
+自有镜像发布后，可使用仓库中的镜像部署脚本，显式提供已发布的 Mediacore 版本。目前先使用源码构建，不将上游镜像版本作为本工程的发布版本。
 
 脚本会先按指定 Release 拉取镜像，再解析并写入 `CANVAS_BACKEND_IMAGE`、`CANVAS_WEB_IMAGE` 的 GHCR digest；生产 Compose 不接受缺失 digest 的默认镜像或 `latest`。更新流程、数据库迁移、备份和回退说明见[系统更新文档](docs/content/docs/backend/system-update.mdx)。
 

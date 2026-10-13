@@ -2,8 +2,8 @@
 
 set -Eeuo pipefail
 
-REPOSITORY_URL="${REPOSITORY_URL:-https://github.com/ddcat-ai/open-ai-canvas.git}"
-REPOSITORY_REF="${REPOSITORY_REF:-main}"
+REPOSITORY_URL="${REPOSITORY_URL:-https://github.com/NikitaMikhalkov/mediacore-canvas.git}"
+REPOSITORY_REF="${REPOSITORY_REF:-mediacore/yingce-phase1-20261013}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/open-ai-canvas}"
 CANVAS_HTTP_PORT="${CANVAS_HTTP_PORT:-3000}"
 COMPOSE_FILE="docker-compose.deploy.yml"
@@ -64,7 +64,7 @@ install_docker() {
 }
 
 sync_source() {
-    step "下载影策源码"
+    step "下载 Mediacore 源码"
     if [[ -d "$INSTALL_DIR/.git" ]]; then
         cd "$INSTALL_DIR"
         [[ -z "$(git status --porcelain --untracked-files=no)" ]] || fail "$INSTALL_DIR 存在本地代码改动，请先处理后再更新"

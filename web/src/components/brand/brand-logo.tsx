@@ -12,12 +12,21 @@ type BrandLogoProps = {
     theme?: ThemeName | "auto";
 };
 
-export function BrandLogo({ className, fallback, alt = "", theme = "auto" }: BrandLogoProps) {
+export function BrandLogo({ className, alt = "", theme = "auto" }: BrandLogoProps) {
     const appearance = useAppearanceStore((state) => state.appearance);
     const currentTheme = useActiveTheme();
     const source = appearanceLogoURL(appearance, theme === "auto" ? currentTheme : theme);
     const [failedSource, setFailedSource] = useState<string | null>(null);
-    if (!appearance.logoConfigured) return <>{fallback}</>;
+    if (!appearance.logoConfigured)
+        return (
+            <span
+                className={cn("block bg-current", className)}
+                role={alt ? "img" : undefined}
+                aria-label={alt || undefined}
+                aria-hidden={alt ? undefined : true}
+                style={{ mask: "url(/logo.svg) center / contain no-repeat", WebkitMask: "url(/logo.svg) center / contain no-repeat" }}
+            />
+        );
     // A configured custom logo must never fall through to the built-in brand
     // when its file becomes unavailable. Keep its footprint neutral instead.
     if (failedSource === source) return <span className={cn("block", className)} aria-hidden="true" />;
