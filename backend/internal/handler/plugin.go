@@ -162,7 +162,9 @@ func RegisterPluginRoutes(r *gin.RouterGroup, svc *service.Service) {
 			return
 		}
 		if fileName == "" {
-			fileName = c.Param("id") + ".yingce-plugin"
+			fileName = c.Param("id") + ".zip"
+		} else if strings.HasSuffix(strings.ToLower(fileName), ".yingce-plugin") {
+			fileName = fileName[:len(fileName)-len(".yingce-plugin")] + ".zip"
 		}
 		c.Header("Cache-Control", "private, no-store")
 		c.Header("Content-Disposition", "attachment; filename=\""+strings.ReplaceAll(fileName, "\"", "")+"\"")

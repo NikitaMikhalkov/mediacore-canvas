@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1400" viewBox="0 0 1200 1400" fill="none">
+  <defs>
+    <linearGradient id="sky" x1="120" y1="0" x2="1040" y2="1400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#172740"/>
+      <stop offset="0.56" stop-color="#283451"/>
+      <stop offset="1" stop-color="#101622"/>
+    </linearGradient>
+    <radialGradient id="blue" cx="0" cy="0" r="1" gradientTransform="translate(300 370) rotate(90) scale(600 660)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8FCDFF" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#8FCDFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="violet" cx="0" cy="0" r="1" gradientTransform="translate(1000 670) rotate(90) scale(650 650)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B8A4EB" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#B8A4EB" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="glass" x1="240" y1="300" x2="960" y2="950" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity="0.17"/>
+      <stop offset="1" stop-color="white" stop-opacity="0.025"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#sky)" d="M0 0H1200V1400H0Z"/>
+  <path fill="url(#blue)" d="M0 0H1200V1400H0Z"/>
+  <path fill="url(#violet)" d="M0 0H1200V1400H0Z"/>
+  <g transform="translate(220 245) rotate(-12 380 380)">
+    <rect x="80" y="100" width="660" height="660" rx="130" fill="url(#glass)" stroke="white" stroke-opacity="0.18"/>
+    <rect x="10" y="10" width="660" height="660" rx="130" fill="url(#glass)" stroke="white" stroke-opacity="0.32"/>
+    <path d="M160 470V210H215L340 380L465 210H520V470H462V315L340 475L218 315V470H160Z" fill="white" fill-opacity="0.74"/>
+  </g>
+</svg>
