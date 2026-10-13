@@ -111,8 +111,8 @@ func TestApplyDefaultOutboundHeaders(t *testing.T) {
 		t.Fatal(err)
 	}
 	ApplyDefaultOutboundHeaders(request)
-	if got := request.Header.Get("User-Agent"); got != DefaultOutboundUserAgent {
-		t.Fatalf("User-Agent = %q, want %q", got, DefaultOutboundUserAgent)
+	if got := request.Header.Get("User-Agent"); got != "Mediacore/1.0 (+https://github.com/NikitaMikhalkov/mediacore-canvas)" {
+		t.Fatalf("User-Agent should identify Mediacore, got %q", got)
 	}
 
 	request.Header.Set("User-Agent", "custom-agent")
