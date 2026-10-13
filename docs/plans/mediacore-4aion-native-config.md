@@ -6,11 +6,11 @@
 
 在「系统模型」创建以下渠道，密钥通过管理员界面私密填写，不写入仓库文件、浏览器普通用户配置或任务正文。`X-Aion-Model` 使用渠道已有的额外请求头编辑器设置。
 
-| 渠道 | Base URL | 模型 ID | 原生请求协议 | 额外请求头 |
-| --- | --- | --- | --- | --- |
-| 4aion 文本 | `https://4aion.com/v1` | `gpt-6.1-sol` | `chat-completion` | `X-Aion-Model: gpt-6.1-sol` |
-| 4aion 图片 | `https://4aion.com/v1` | `gpt-image-2-plus` | `openai-image` | `X-Aion-Model: gpt-image-2-plus` |
-| 4aion Seedance Mini | `https://4aion.com` | `doubao-seedance-2-0-mini-260615` | `volcengine-ark-video` | `X-Aion-Model: doubao-seedance-2-0-mini-260615` |
+| 渠道                | Base URL               | 模型 ID                           | 原生请求协议           | 额外请求头                                      |
+| ------------------- | ---------------------- | --------------------------------- | ---------------------- | ----------------------------------------------- |
+| 4aion 文本          | `https://4aion.com/v1` | `gpt-6.1-sol`                     | `chat-completion`      | `X-Aion-Model: gpt-6.1-sol`                     |
+| 4aion 图片          | `https://4aion.com/v1` | `gpt-image-2-plus`                | `openai-image`         | `X-Aion-Model: gpt-image-2-plus`                |
+| 4aion Seedance Mini | `https://4aion.com`    | `doubao-seedance-2-0-mini-260615` | `volcengine-ark-video` | `X-Aion-Model: doubao-seedance-2-0-mini-260615` |
 
 模型使用相同的上游 ID，能力分别选择文本、图片、视频。能力参数先复用协议的原生默认值；Mini 的分辨率限定为 `480p`、`720p`，不沿用通用 Seedance 的 `1080p`。售卖规格和积分价格通过原生模型价格档配置，未确认售价的模型保持停用，不能以零价格自动开放。
 
