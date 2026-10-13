@@ -1,6 +1,6 @@
 # Mediacore 调研入口
 
-固定上游：`ddcat-ai/open-ai-canvas@26dfb8d91bddf78ada93f7cba079368f1634db6d`（v1.6.7）。[阶段范围和访谈结论](../plans/mediacore-phase1-discovery.md)记录用户决定；[NIK-287](https://linear.app/nikita96/issue/NIK-287)及新项目任务记录执行状态。
+固定上游：`ddcat-ai/open-ai-canvas@26dfb8d91bddf78ada93f7cba079368f1634db6d`（v1.6.7）。用户已确认方案与测试边界；[第一阶段正式规格](../plans/mediacore-phase1-spec.md)为需求与验收基线，[访谈记录](../plans/mediacore-phase1-discovery.md)保留决定来源；[NIK-287](https://linear.app/nikita96/issue/NIK-287)及新项目任务记录执行状态。
 
 ## 报告
 
