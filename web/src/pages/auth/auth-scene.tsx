@@ -29,7 +29,7 @@ const authCopy = {
     recovery: {
         eyebrow: "ACCOUNT RECOVERY",
         title: "重新设置密码",
-        description: "验证账号邮箱后，设置一个新的登录密码。",
+        description: "使用邮箱验证码设置一个新的登录密码。",
     },
 } as const;
 

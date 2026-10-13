@@ -54,6 +54,7 @@ func profileHandlerFixture(t *testing.T) (*gin.Engine, *gorm.DB, string) {
 	t.Cleanup(func() { ConfigureRuntime(nil); svc.Close(); sqlDB, _ := db.DB(); _ = sqlDB.Close() })
 	router := gin.New()
 	RegisterAuthRoutes(router.Group("/api"), svc)
+	RegisterFinanceRoutes(router.Group("/api"), svc)
 	return router, db, "profile-session.fixture-token"
 }
 
