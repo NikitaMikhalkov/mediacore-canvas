@@ -6,7 +6,7 @@ import zhCN from "antd/locale/zh_CN";
 
 import { AuthSessionHydrator } from "@/components/auth/auth-session-hydrator";
 import { FullScreenLoader } from "@/components/ui/aceternity/full-screen-loader";
-import { getAntThemeConfig } from "@/lib/app-theme";
+import { appGlassSurfaceStyle, getAntThemeConfig } from "@/lib/app-theme";
 import { applySkinTheme } from "@/lib/skin-themes";
 import { appQueryClient } from "@/lib/query-client";
 import { isIsolatedPrevisRepro } from "@/lib/dev-repro";
@@ -58,7 +58,17 @@ export function AppProviders({ children }: { children: ReactNode }) {
     }, [isolateDevRepro]);
 
     return (
-        <ConfigProvider locale={zhCN} theme={getAntThemeConfig(dark, appearance.activeSkin)} wave={{ disabled: true }}>
+        <ConfigProvider
+            locale={zhCN}
+            theme={getAntThemeConfig(dark, appearance.activeSkin)}
+            wave={{ disabled: true }}
+            modal={{ styles: { container: appGlassSurfaceStyle } }}
+            drawer={{ styles: { content: appGlassSurfaceStyle } }}
+            popover={{ styles: { container: appGlassSurfaceStyle } }}
+            tooltip={{ styles: { container: appGlassSurfaceStyle } }}
+            select={{ styles: { popup: { root: appGlassSurfaceStyle } } }}
+            dropdown={{ styles: { root: { backdropFilter: appGlassSurfaceStyle.backdropFilter, WebkitBackdropFilter: appGlassSurfaceStyle.WebkitBackdropFilter } } }}
+        >
             <App message={{ duration: 3, maxCount: 3 }} notification={{ duration: 4.5, maxCount: 3, placement: "topRight" }}>
                 <QueryClientProvider client={appQueryClient}>
                     {isolateDevRepro ? (

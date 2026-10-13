@@ -1,5 +1,6 @@
 import { Modal, type ModalProps } from "antd";
 import type { CSSProperties } from "react";
+import { appGlassSurfaceStyle } from "@/lib/app-theme";
 
 // 用途：产品弹窗壳。消费 token 由内容自己负责。接管 AntD Modal 的重复 flush 内边距。
 const FLUSH_STYLES = {
@@ -15,13 +16,12 @@ export type AppModalProps = ModalProps & {
 export function AppModal({ flush = false, destroyOnHidden = true, styles, ...props }: AppModalProps) {
     const mergeResolvedStyles = (resolved: unknown) => {
         const base = resolved && typeof resolved === "object" ? (resolved as Record<string, unknown>) : {};
-        if (!flush) return base;
         const container = base.container && typeof base.container === "object" ? (base.container as CSSProperties) : {};
         const body = base.body && typeof base.body === "object" ? (base.body as CSSProperties) : {};
         return {
             ...base,
-            container: { ...container, ...FLUSH_STYLES.container },
-            body: { ...body, ...FLUSH_STYLES.body },
+            container: { ...appGlassSurfaceStyle, ...container, ...(flush ? FLUSH_STYLES.container : {}) },
+            body: flush ? { ...body, ...FLUSH_STYLES.body } : body,
         };
     };
     const mergedStyles =

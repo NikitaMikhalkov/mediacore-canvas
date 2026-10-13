@@ -63,7 +63,7 @@ export function Tooltip({ title, placement = "top", delay = 350, className, chil
                     </Focusable>
                 )}
             </span>
-            <RACTooltip placement={PLACEMENT_MAP[placement]} offset={6} className={cn("z-50 max-w-64 rounded-md border border-border bg-surface-strong px-2 py-1 text-xs leading-relaxed text-foreground shadow-md", "ra-pop-in", className)}>
+            <RACTooltip placement={PLACEMENT_MAP[placement]} offset={6} className={cn("z-50 max-w-64 rounded-md border border-border bg-surface-strong px-2 py-1 text-xs leading-relaxed text-foreground shadow-md", "ra-pop-in", className)} style={{ backdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate))", WebkitBackdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate))" }}>
                 {title}
             </RACTooltip>
         </TooltipTrigger>

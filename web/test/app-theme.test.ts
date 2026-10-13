@@ -5,6 +5,17 @@ import { DEFAULT_CLASSIC_SKIN, duplicateSkinDefinition } from "../src/lib/skin-t
 import { getIsolatedAdminAntTheme } from "../src/pages/admin/theme/admin-ant-theme";
 
 describe("shared action colors and focus feedback", () => {
+    test("product floating surfaces use the selected A material without changing control geometry", () => {
+        const light = getAntThemeConfig(false);
+        const dark = getAntThemeConfig(true);
+        expect(light.token?.colorBgElevated).toBe("rgba(255, 255, 255, 0.92)");
+        expect(dark.token?.colorBgElevated).toBe("rgba(30, 38, 56, 0.94)");
+        expect(light.components?.Modal?.contentBg).toBe(light.token?.colorBgElevated);
+        expect(dark.components?.Popover?.colorBgElevated).toBe(dark.token?.colorBgElevated);
+        expect(light.token).toMatchObject({ controlHeight: 36, controlHeightLG: 42, controlHeightSM: 30, fontSize: 13, borderRadius: 6 });
+        expect(dark.token).toMatchObject({ controlHeight: 36, controlHeightLG: 42, controlHeightSM: 30, fontSize: 13, borderRadius: 6 });
+    });
+
     for (const dark of [false, true]) {
         test(`classic solid tokens remain monochrome beneath the button fill adapter in ${dark ? "dark" : "light"} mode`, () => {
             const product = getAntThemeConfig(dark, DEFAULT_CLASSIC_SKIN);

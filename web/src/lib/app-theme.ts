@@ -1,7 +1,16 @@
 import type { ThemeConfig } from "antd";
 import { theme as antdTheme } from "antd";
+import type { CSSProperties } from "react";
 
 import { getSkinAntOverrides, normalizeSkinID } from "@/lib/skin-themes";
+
+export const appGlassSurfaceStyle: CSSProperties = {
+    background: "var(--popover)",
+    borderColor: "var(--glass-edge)",
+    boxShadow: "var(--elevation-overlay)",
+    backdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate))",
+    WebkitBackdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate))",
+};
 
 // 主操作、普通选择和开关是不同交互语义，必须各自维护成对的背景/前景色。
 const controlTheme = {
@@ -128,8 +137,8 @@ export function getAntThemeConfig(dark: boolean, skinID: unknown = "classic"): T
         dangerForeground: skin.dangerForeground || baseColor.dangerForeground,
         info: skin.info || baseColor.info,
     };
-    // 浮层背景必须不透明（0.96 会透出下层内容）；与侧栏切换器等自定义浮层的实底背景保持一致
-    const elevatedBackground = skin.elevatedBackground || (dark ? "rgba(31, 31, 32, 1)" : "rgba(255, 255, 255, 1)");
+    // 密集浮层使用 A 材质较高的不透明度，保持下层轮廓与正文可读性。
+    const elevatedBackground = skin.elevatedBackground || (dark ? "rgba(30, 38, 56, 0.94)" : "rgba(255, 255, 255, 0.92)");
     const subtleBackground = skin.subtleBackground || (dark ? "rgba(255, 255, 255, 0.055)" : "rgba(17, 17, 17, 0.035)");
     const interactiveBorder = skin.controlBorder || (dark ? "rgba(255, 255, 255, 0.18)" : "rgba(17, 17, 17, 0.18)");
     // 信息提示使用独立的浅色/深色表面，不能复用主操作的纯黑/纯白色；
@@ -178,10 +187,10 @@ export function getAntThemeConfig(dark: boolean, skinID: unknown = "classic"): T
             colorErrorTextHover: color.dangerHover,
             colorErrorTextActive: color.dangerActive,
             colorBgElevated: elevatedBackground,
-            colorBgContainer: skin.controlSurface || undefined,
+            colorBgContainer: elevatedBackground,
             colorBorderSecondary: dark ? "rgba(255, 255, 255, 0.1)" : "rgba(17, 17, 17, 0.09)",
             boxShadowSecondary:
-                skin.shadowStyle === "none" ? "none" : skin.shadowStyle === "strong" ? (dark ? "0 28px 84px rgba(0, 0, 0, 0.68)" : "0 26px 72px rgba(15, 23, 42, 0.22)") : dark ? "0 24px 72px rgba(0, 0, 0, 0.48)" : "0 22px 64px rgba(15, 23, 42, 0.14)",
+                skin.shadowStyle === "none" ? "none" : skin.shadowStyle === "strong" ? (dark ? "0 28px 84px rgba(0, 0, 0, 0.68)" : "0 26px 72px rgba(15, 23, 42, 0.22)") : dark ? "0 12px 40px rgba(0, 0, 0, 0.24)" : "0 8px 32px rgba(43, 48, 76, 0.07)",
             borderRadius: skin.borderRadius || 6,
             borderRadiusLG: skin.borderRadiusLG || 8,
             borderRadiusSM: skin.borderRadiusSM || 5,

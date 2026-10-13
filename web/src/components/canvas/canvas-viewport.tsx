@@ -454,7 +454,8 @@ export function CanvasViewport({
             className={`relative h-full w-full select-none overflow-hidden touch-none ${isPanning ? "cursor-grabbing" : isSpacePressed || !boxSelectEnabled ? "cursor-grab" : "canvas-cursor-select"}`}
             style={
                 {
-                    background: resolvedAppearance.background,
+                    backgroundColor: resolvedAppearance.background,
+                    backgroundImage: appearance?.mode === "custom" ? "none" : "var(--glass-environment)",
                     overscrollBehavior: "none",
                     "--canvas-live-x": `${viewport.x}px`,
                     "--canvas-live-y": `${viewport.y}px`,

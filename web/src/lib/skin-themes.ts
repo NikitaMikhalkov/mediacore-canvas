@@ -423,6 +423,7 @@ export const DEFAULT_CLASSIC_SKIN: SkinDefinition = {
 
 const HEX_COLOR = /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i;
 const MANAGED_VARIABLES = [
+    "--glass-base-color",
     "--button-primary-bg", "--button-primary-hover-bg", "--button-primary-active-bg", "--button-primary-fg",
     "--background",
     "--foreground",
@@ -652,7 +653,7 @@ export function getSkinAntOverrides(value: unknown, mode: SkinThemeMode): Partia
         switchUnchecked: color.switchUnchecked,
         switchUncheckedHover: color.switchUncheckedHover,
         switchUncheckedHandle: color.switchUncheckedHandle,
-        elevatedBackground: color.overlay,
+        elevatedBackground: `color-mix(in srgb, ${color.overlay} ${mode === "dark" ? 94 : 92}%, transparent)`,
         subtleBackground: color.surfaceSubtle,
         menuBackground: color.selected,
         menuForeground: color.selectedForeground,
@@ -729,12 +730,18 @@ export function skinCSSVariables(skin: SkinDefinition, mode: SkinThemeMode): Rec
     const color = skin.tokens[mode];
     const component = skin.tokens.components;
     const shadows = skinShadowVariables(component.shadowStyle, mode);
+    const baseDensity = mode === "dark" ? 72 : 64;
+    const denseDensity = mode === "dark" ? 94 : 92;
+    const baseSurface = `color-mix(in srgb, ${color.surface} ${baseDensity}%, transparent)`;
+    const denseSurface = `color-mix(in srgb, ${color.surfaceRaised} ${denseDensity}%, transparent)`;
+    const overlaySurface = `color-mix(in srgb, ${color.overlay} ${denseDensity}%, transparent)`;
     return {
+        "--glass-base-color": color.surface,
         "--background": color.canvas,
         "--foreground": color.text,
-        "--card": color.surface,
+        "--card": denseSurface,
         "--card-foreground": color.text,
-        "--popover": color.overlay,
+        "--popover": overlaySurface,
         "--popover-foreground": color.text,
         "--primary": color.primary,
         "--primary-foreground": color.primaryForeground,
@@ -751,14 +758,14 @@ export function skinCSSVariables(skin: SkinDefinition, mode: SkinThemeMode): Rec
         "--border": color.border,
         "--input": color.controlBorder,
         "--ring": color.controlFocus,
-        "--surface": color.surface,
+        "--surface": baseSurface,
         "--surface-hover": color.controlHover,
         "--surface-active": color.controlActive,
-        "--surface-card": color.surfaceSubtle,
+        "--surface-card": denseSurface,
         "--surface-card-hover": color.controlHover,
-        "--card-surface": color.surfaceSubtle,
+        "--card-surface": denseSurface,
         "--card-surface-hover": color.controlHover,
-        "--card-surface-raised": color.surfaceRaised,
+        "--card-surface-raised": denseSurface,
         "--btn-solid-bg": color.primary,
         "--btn-solid-hover-bg": color.primaryHover,
         "--btn-solid-active-bg": color.primaryActive,
@@ -778,20 +785,20 @@ export function skinCSSVariables(skin: SkinDefinition, mode: SkinThemeMode): Rec
         "--control-disabled-bg": color.controlDisabledBackground,
         "--control-disabled-fg": color.controlDisabledForeground,
         "--control-focus-ring": color.controlFocus,
-        "--workspace-surface": color.workspace,
-        "--workspace-surface-strong": color.surfaceRaised,
+        "--workspace-surface": `color-mix(in srgb, ${color.workspace} ${baseDensity}%, transparent)`,
+        "--workspace-surface-strong": denseSurface,
         "--workspace-border": color.border,
         "--workspace-border-strong": color.controlBorder,
         "--workspace-grid-line": color.workspaceGrid,
         "--workspace-accent": color.primary,
         "--workspace-accent-soft": `color-mix(in srgb, ${color.primary} 12%, transparent)`,
         "--skin-admin-layer-0": color.adminBackground,
-        "--skin-admin-layer-1": color.adminSurface,
-        "--skin-admin-layer-2": color.adminSubtle,
-        "--skin-admin-layer-3": color.adminStrong,
+        "--skin-admin-layer-1": `color-mix(in srgb, ${color.adminSurface} ${denseDensity}%, transparent)`,
+        "--skin-admin-layer-2": `color-mix(in srgb, ${color.adminSubtle} ${baseDensity}%, transparent)`,
+        "--skin-admin-layer-3": `color-mix(in srgb, ${color.adminStrong} ${denseDensity}%, transparent)`,
         "--auth-page-bg": color.authBackground,
-        "--auth-panel-bg": color.authPanel,
-        "--auth-card-bg": color.authCard,
+        "--auth-panel-bg": `color-mix(in srgb, ${color.authPanel} ${baseDensity}%, transparent)`,
+        "--auth-card-bg": `color-mix(in srgb, ${color.authCard} ${denseDensity}%, transparent)`,
         "--auth-accent": color.authAccent,
         "--auth-muted": color.authMuted,
         "--palette-status-success": color.success,

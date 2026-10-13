@@ -144,7 +144,7 @@ export function ToolbarSettingsModal({ open, onClose, toolbar }: ToolbarSettings
             destroyOnClose
             styles={{
                 container: { padding: 0, background: theme.spatial.elevated, border: 0, boxShadow: "none" },
-                body: { padding: 0, background: theme.spatial.elevated },
+                body: { padding: 0, background: "transparent" },
             }}
         >
             <div className="flex items-start justify-between gap-4 px-5 pb-3 pt-5">
