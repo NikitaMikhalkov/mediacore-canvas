@@ -2,7 +2,9 @@
 
 FROM node:22.19-alpine
 
-RUN apk add --no-cache ca-certificates wget \
+ARG ALPINE_MIRROR=https://dl-cdn.alpinelinux.org/alpine
+RUN sed -i "s|https://dl-cdn.alpinelinux.org/alpine|${ALPINE_MIRROR}|g" /etc/apk/repositories \
+    && apk add --no-cache ca-certificates wget \
     && addgroup -S app \
     && adduser -S app -G app
 

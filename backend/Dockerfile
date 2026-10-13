@@ -5,7 +5,9 @@ FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS payment-package-build
 ARG GOPROXY=https://proxy.golang.org,direct
 ENV GOPROXY=$GOPROXY
 
-RUN apk add --no-cache nodejs unzip zip
+ARG ALPINE_MIRROR=https://dl-cdn.alpinelinux.org/alpine
+RUN sed -i "s|https://dl-cdn.alpinelinux.org/alpine|${ALPINE_MIRROR}|g" /etc/apk/repositories \
+    && apk add --no-cache nodejs unzip zip
 
 WORKDIR /src
 # 插件只下载实际依赖，不为四个小程序预取整个业务后端的模块图。
@@ -26,7 +28,9 @@ FROM alpine:3.22 AS payment-package-smoke
 
 ARG TARGETOS
 ARG TARGETARCH
-RUN apk add --no-cache unzip
+ARG ALPINE_MIRROR=https://dl-cdn.alpinelinux.org/alpine
+RUN sed -i "s|https://dl-cdn.alpinelinux.org/alpine|${ALPINE_MIRROR}|g" /etc/apk/repositories \
+    && apk add --no-cache unzip
 COPY --from=payment-package-build /src/plugin-packages /app/plugin-packages
 RUN PAYMENT_PLUGIN_SMOKE_TEST=1 \
     sh /app/plugin-packages/verify-payment-packages.sh "$TARGETOS" "$TARGETARCH"
@@ -36,7 +40,9 @@ FROM golang:1.25-alpine AS backend-build
 ARG GOPROXY=https://proxy.golang.org,direct
 ENV GOPROXY=$GOPROXY
 
-RUN apk add --no-cache build-base
+ARG ALPINE_MIRROR=https://dl-cdn.alpinelinux.org/alpine
+RUN sed -i "s|https://dl-cdn.alpinelinux.org/alpine|${ALPINE_MIRROR}|g" /etc/apk/repositories \
+    && apk add --no-cache build-base
 
 WORKDIR /src/backend
 COPY backend/go.mod backend/go.sum ./
@@ -67,7 +73,9 @@ RUN npm ci --omit=dev --ignore-scripts
 
 FROM node:22.19-alpine
 
-RUN apk add --no-cache ca-certificates tzdata wget ffmpeg \
+ARG ALPINE_MIRROR=https://dl-cdn.alpinelinux.org/alpine
+RUN sed -i "s|https://dl-cdn.alpinelinux.org/alpine|${ALPINE_MIRROR}|g" /etc/apk/repositories \
+    && apk add --no-cache ca-certificates tzdata wget ffmpeg \
     && addgroup -S app \
     && adduser -S app -G app
 
