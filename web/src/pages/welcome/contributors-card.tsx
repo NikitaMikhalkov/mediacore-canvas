@@ -15,7 +15,7 @@ export function WelcomeContributorsCard() {
                 <div className="welcome-contributors-heading">
                     <span className="welcome-contributors-kicker">
                         <UsersRound size={15} />
-                        Upstream Contributors
+                        上游贡献者
                     </span>
                     <div>
                         <h3 id="welcome-contributors-title">感谢上游开源贡献者</h3>

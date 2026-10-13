@@ -7,7 +7,8 @@ import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 
 type BrandLogoProps = {
     className?: string;
-    fallback: ReactNode;
+    // Keep upstream callers compatible while the bundled mark is shared site-wide.
+    fallback?: ReactNode;
     alt?: string;
     theme?: ThemeName | "auto";
 };

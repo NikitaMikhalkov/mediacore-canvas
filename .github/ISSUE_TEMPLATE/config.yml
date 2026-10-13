@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 私密安全报告
-    url: https://github.com/ddcat-ai/open-ai-canvas/security/advisories/new
-    about: 请勿在公开 Issue 中披露未修复漏洞
+  - name: Mediacore 安全策略
+    url: https://github.com/NikitaMikhalkov/mediacore-canvas/blob/mediacore/yingce-phase1-20261013/SECURITY.md
+    about: 查看本工程的漏洞报告方式，请勿在公开 Issue 中披露未修复漏洞
