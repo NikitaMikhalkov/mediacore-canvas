@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useRef, useState, type ReactNode } from "react";
 import { App, Button, Checkbox, Divider, Input, Modal, Segmented } from "antd";
-import { ArrowRight, FileText, Info, LockKeyhole, Mail, TriangleAlert, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileText, Info, LockKeyhole, Mail, TriangleAlert, UserRound } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { getAuthSession, getAuthSettings, linuxDOLoginURL, register } from "@/services/api/auth";
@@ -18,6 +18,7 @@ export default function RegisterPage() {
     const { message } = App.useApp();
     const brandName = useAppearanceStore((state) => state.appearance.brandName) || "平台";
     const [settings, setSettings] = useState<AuthSettings | null>(null);
+    const [stage, setStage] = useState<"details" | "password">("details");
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [verification, setVerification] = useState({ ...emptyVerification });
@@ -66,6 +67,14 @@ export default function RegisterPage() {
             message.warning(`请先同意${agreementTitle}`);
             return;
         }
+        if (stage === "details") {
+            if (!settings?.firstUser && (!verification.ticket || (method !== "sms" && verification.emailCode.length !== 6) || (method !== "email" && verification.smsCode.length !== 6))) {
+                message.warning("请获取并填写本次注册的 6 位验证码");
+                return;
+            }
+            setStage("password");
+            return;
+        }
         if (password !== confirmPassword) {
             message.error("两次输入的密码不一致");
             return;
@@ -102,6 +111,11 @@ export default function RegisterPage() {
 
     return (
         <form onSubmit={submit} className="space-y-4">
+            <div className="flex items-center justify-between gap-3 text-xs" aria-label="注册步骤">
+                <span className={stage === "details" ? "auth-scene-label font-medium" : "auth-scene-muted"} aria-current={stage === "details" ? "step" : undefined}>1 · {settings?.firstUser ? "填写资料" : "填写资料与验证码"}</span>
+                <ArrowRight className="auth-scene-muted size-3.5 shrink-0" aria-hidden />
+                <span className={stage === "password" ? "auth-scene-label font-medium" : "auth-scene-muted"} aria-current={stage === "password" ? "step" : undefined}>2 · 设置密码</span>
+            </div>
             {settings?.firstUser ? (
                 <Notice icon={<Info className="size-3.5" />} tone="blue">
                     首个账号自动成为管理员，邮箱验证码暂不要求。
@@ -118,6 +132,7 @@ export default function RegisterPage() {
                 </Notice>
             ) : null}
 
+            <div hidden={stage !== "details"} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
                 <AuthField label="用户名">
                     <Input size="large" prefix={<UserRound className="auth-scene-icon size-4" />} value={username} onChange={(event) => setUsername(event.target.value)} placeholder="3-32 位字符" autoComplete="username" required disabled={disabled} />
@@ -143,6 +158,13 @@ export default function RegisterPage() {
                 {methods.length > 0 && <VerificationFields key={method} purpose="register" method={method} value={verification} onChange={setVerification} disabled={disabled || submitting} />}
             </>}
 
+            </div>
+
+            {stage === "password" ? <>
+            <div className="auth-scene-notice rounded-lg border px-3 py-2.5 text-xs leading-5" data-tone="blue">
+                <p className="m-0 font-medium">为 {username} 设置登录密码</p>
+                <p className="m-0">{settings?.firstUser ? "提交后创建管理员账号。" : "提交时会核验验证码并创建账号，注册尚未完成。验证码过期请返回重新获取。"}</p>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
                 <AuthField label="密码">
                     <Input.Password
@@ -152,6 +174,7 @@ export default function RegisterPage() {
                         onChange={(event) => setPassword(event.target.value)}
                         placeholder="至少 8 位"
                         autoComplete="new-password"
+                        autoFocus
                         required
                         disabled={disabled}
                     />
@@ -169,6 +192,7 @@ export default function RegisterPage() {
                     />
                 </AuthField>
             </div>
+            </> : null}
 
             {settingsFailed ? (
                 <Notice icon={<TriangleAlert className="size-3.5" />} tone="amber">
@@ -181,7 +205,7 @@ export default function RegisterPage() {
                 </Notice>
             ) : null}
 
-            {settings ? (
+            {settings && stage === "details" ? (
                 <div className="auth-agreement-row" data-accepted={agreementAccepted ? "true" : "false"}>
                     <Checkbox checked={agreementAccepted} onChange={(event) => setAgreementAccepted(event.target.checked)}>
                         <span className="auth-agreement-label">我已阅读并同意</span>
@@ -193,9 +217,12 @@ export default function RegisterPage() {
             ) : null}
 
             <Button type="primary" htmlType="submit" size="large" block loading={submitting} disabled={disabled || registerCountdown > 0 || !agreementAccepted} icon={<ArrowRight className="size-4" />} iconPlacement="end">
-                {registerCountdown > 0 ? `${registerCountdown} 秒后可重试` : "创建账号"}
+                {registerCountdown > 0 ? `${registerCountdown} 秒后可重试` : stage === "details" ? "下一步：设置密码" : "设置密码并创建账号"}
             </Button>
-            {settings?.linuxdoEnabled && !settings.smsAndEmailRegistration ? (
+            {stage === "password" ? <Button type="text" block disabled={submitting} icon={<ArrowLeft className="size-3.5" />} onClick={() => { setStage("details"); setPassword(""); setConfirmPassword(""); }}>
+                返回修改资料与验证码
+            </Button> : null}
+            {stage === "details" && settings?.linuxdoEnabled && !settings.smsAndEmailRegistration ? (
                 <>
                     <Divider plain className="auth-scene-divider">
                         或

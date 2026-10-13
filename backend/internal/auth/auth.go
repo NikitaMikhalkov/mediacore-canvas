@@ -21,7 +21,7 @@ import (
 
 const SessionCookieName = "open_ai_canvas_session"
 
-const sessionMaxAge = 30 * 24 * time.Hour
+const sessionMaxAge = 7 * 24 * time.Hour
 
 var usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_-]{3,32}$`)
 
