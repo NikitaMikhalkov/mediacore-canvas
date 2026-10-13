@@ -164,3 +164,17 @@ cd web && bun run dev
 - Git 提交说明使用 `<type>(<scope>): <业务模块> - <变更摘要>`，`type` 为 `feat|fix|refactor|perf|docs|test|build|ci|chore|revert`。
 
 交付前至少检查：改动是否聚焦、调用方和类型是否同步、错误/权限/数据归属是否完整、必要文档是否同步、验证是否如实说明、是否留下密钥或本地数据。
+
+## Agent skills
+
+### Issue tracker
+
+本工程任务统一登记于 Linear「Mediacore · 影策开源画布」。创建、更新或分诊任务前读取 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+使用五种默认 triage 标签。分诊前读取 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+使用 single-context 布局。探索领域、修改术语或设计前读取 `docs/agents/domain.md`。
