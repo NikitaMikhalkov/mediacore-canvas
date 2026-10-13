@@ -5,6 +5,14 @@ description: 当前项目已实现功能的手工验证清单与未确认边界
 
 # 待测试
 
+## Mediacore Linux 部署（NIK-293）
+
+- [x] 原生 PostgreSQL、Redis、后端、Web 和独立 Agent 已在独立目录部署，运行源码为 `26cbbe5`。已将 `https://canvas.xingcyj.com` 切换到 Mediacore，保留原代理配置和其他工程服务/数据。操作与备份见[Linux 部署说明](../../../plans/mediacore-linux-deployment.md)。
+- [x] 原生登录、画布创建/保存、积分兑换及账本、PNG 上传与鉴权下载通过；重启后仍可读回画布和素材，通过正式 HTTPS 入口再次读回。已停用检查账号，备份与每日任务已配置。
+- [x] 正式浏览器首页、登录页显示 Mediacore，注册页显示关闭提示。三个 4aion 渠道与模型停用，正式售价未配置，普通目录无可用模型；本轮没有新增付费调用。
+- [ ] 提供 SMTP 与正式积分售价后，再通过原生后台开放注册和模型。用户已接受先部署并保持模型停用；不复制隔离检查价格，不新增自研注册或计费。
+- [ ] 用户试用确认；服务器新生成检查仍须明确授权预算。未重复执行全量上游测试、专项压测或恢复演练。
+
 ## Mediacore 4aion 原生配置（NIK-289）
 
 - 已完成接入检查：复用原生系统渠道及 Chat Completions、OpenAI Images、Seedance 协议，不新增生成或计费代码。配置及部署交接见[4aion 原生渠道说明](../../../plans/mediacore-4aion-native-config.md)。
