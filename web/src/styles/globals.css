@@ -143,15 +143,15 @@
        --shadow-* 在暗色下会翻成白影，浮层用会发光刺眼。以下 token 两个主题都用黑影，
        靠 hairline（内描边）而不是发光来交代层级，浮层与卡片统一引用这里。 */
     /* 亮色下卡片浮在白底上，hairline 要比暗色更实才看得见边界（暗色靠影，亮色靠线）。 */
-    --elevation-hairline: inset 0 0 0 1px rgba(17, 17, 17, 0.13);
-    --elevation-card: 0 1px 2px rgba(0, 0, 0, 0.05);
-    --elevation-card-hover: 0 10px 26px rgba(0, 0, 0, 0.1), 0 2px 5px rgba(0, 0, 0, 0.05);
-    --elevation-overlay: 0 24px 60px rgba(0, 0, 0, 0.2), 0 3px 10px rgba(0, 0, 0, 0.09);
+    --elevation-hairline: inset 0 0 0 1px var(--glass-edge);
+    --elevation-card: var(--glass-shadow);
+    --elevation-card-hover: 0 12px 36px rgba(43, 48, 76, 0.11);
+    --elevation-overlay: var(--glass-shadow);
     --elevation-panel: -18px 0 52px rgba(0, 0, 0, 0.16);
     --focus-ring-soft: 0 0 0 3px color-mix(in srgb, var(--ring) 28%, transparent);
 
     /* 卡片表面：亮色需要一点灰底把卡片从白页面里托出来，暗色则是提亮。 */
-    --surface-card: rgba(17, 17, 17, 0.028);
+    --surface-card: var(--glass-dense-surface);
     --surface-card-hover: rgba(17, 17, 17, 0.055);
     /* 项目列表卡是高频入口，不能沿用过轻的通用 surface。 */
     --project-library-surface: #f5f5f5;
@@ -161,9 +161,9 @@
 
     /* === 新卡片系统 Token（对应 docs/ui-design-system.md）=== */
     /* 卡片表面通过明度分层，普通卡片不依赖描边和投影。 */
-    --card-surface: #f7f7f7;
+    --card-surface: var(--glass-dense-surface);
     --card-surface-hover: #f0f0f0;
-    --card-surface-raised: #ececec;
+    --card-surface-raised: var(--glass-dense-surface);
 
     --card-border: transparent;
     --card-border-hover: transparent;
@@ -289,16 +289,24 @@
     --opa-full: 1;
 
     /* 毛玻璃参数：收敛浮层玻璃质感，避免组件散落字面 blur/saturate */
-    --glass-blur: 10px;
-    --glass-saturate: 112%;
-    --glass-alpha: 0.94;
-    --glass-alpha-strong: 0.97;
+    --glass-blur: 22px;
+    --glass-saturate: 115%;
+    --glass-alpha: 0.64;
+    --glass-alpha-strong: 0.92;
     --glass-border-alpha: 0.78;
+    --glass-base-color: #ffffff;
+    --glass-surface: color-mix(in srgb, var(--glass-base-color) calc(var(--glass-alpha) * 100%), transparent);
+    --glass-dense-surface: color-mix(in srgb, var(--glass-base-color) calc(var(--glass-alpha-strong) * 100%), transparent);
+    --glass-edge: rgba(255, 255, 255, 0.84);
+    --glass-shadow: 0 8px 32px rgba(43, 48, 76, 0.07);
+    --glass-blue: rgba(142, 177, 255, 0.16);
+    --glass-purple: rgba(194, 168, 246, 0.14);
+    --glass-environment: radial-gradient(ellipse at 12% 0%, var(--glass-blue), transparent 62%), radial-gradient(ellipse at 90% 10%, var(--glass-purple), transparent 58%);
 
     /* 登录表单跟随全局明暗主题；品牌影片保留独立深色舞台。 */
-    --auth-page-bg: #ffffff;
-    --auth-panel-bg: #f7f7f7;
-    --auth-card-bg: #ffffff;
+    --auth-page-bg: #f9fbff;
+    --auth-panel-bg: var(--glass-surface);
+    --auth-card-bg: var(--glass-dense-surface);
     --auth-accent: #2563eb;
     --auth-muted: #737373;
     /* 协议勾选框的填充色与对勾色。必须成对维护：两者相近会在某一主题下
@@ -815,8 +823,8 @@
     --workspace-page: var(--workspace-canvas);
     --workspace-navigation: var(--workspace-page);
     --workspace-content: var(--workspace-page);
-    --workspace-surface: #ffffff;
-    --workspace-surface-strong: #ffffff;
+    --workspace-surface: var(--glass-surface);
+    --workspace-surface-strong: var(--glass-dense-surface);
     --workspace-border: rgba(17, 17, 17, 0.14);
     --workspace-border-strong: rgba(17, 17, 17, 0.22);
     --workspace-grid-line: rgba(17, 17, 17, 0.045);
@@ -841,7 +849,7 @@
     --border-semantic: var(--color-neutral-200);
     --bg-secondary: var(--color-neutral-50);
     --bg-tertiary: var(--color-neutral-100);
-    --surface: var(--color-neutral-0);
+    --surface: var(--glass-surface);
     --surface-hover: rgba(17, 17, 17, 0.05);
     --surface-active: rgba(17, 17, 17, 0.09);
 
@@ -850,7 +858,7 @@
     --workspace-text-muted: var(--color-neutral-500); /* muted 角色 */
     --workspace-text-faint: var(--color-neutral-400); /* muted-soft 角色 */
     --workspace-canvas-deep: var(--color-neutral-0);  /* canvas-deep 角色（light 无更深处）*/
-    --workspace-glass-surface: color-mix(in srgb, var(--workspace-surface) calc(var(--glass-alpha) * 100%), transparent);
+    --workspace-glass-surface: var(--workspace-surface);
     --workspace-glass-border: color-mix(in srgb, var(--workspace-border) calc(var(--glass-border-alpha) * 100%), transparent);
     --accent: var(--workspace-accent);
     --accent-soft: var(--workspace-accent-soft);
@@ -870,7 +878,7 @@
     --cn-muted: var(--color-neutral-500);
     --cn-faint: var(--color-neutral-400);
     --cn-stroke: var(--color-neutral-200);
-    --cn-fill: var(--color-neutral-50);
+    --cn-fill: var(--glass-dense-surface);
     --cn-active-stroke: var(--workspace-accent);
     --cn-active-stroke-soft: var(--workspace-accent-soft);
 
@@ -880,7 +888,7 @@
     --cn-spatial-shadow: rgba(0, 0, 0, 0.12);
     --cn-spatial-glow: rgba(125, 162, 255, 0.2);
     --cn-spatial-glow-strong: rgba(125, 162, 255, 0.35);
-    --cn-spatial-elevated: var(--color-neutral-0);
+    --cn-spatial-elevated: var(--glass-dense-surface);
     --cn-spatial-toolbar-border: var(--color-neutral-200);
 
     --previs-sequencer-surface: var(--color-neutral-900);
@@ -927,11 +935,11 @@
 
     --border: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);
-    --background: oklch(1 0 0);
+    --background: #f9fbff;
     --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
+    --card: var(--glass-dense-surface);
     --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
+    --popover: var(--glass-dense-surface);
     --popover-foreground: oklch(0.145 0 0);
     --primary: oklch(0.205 0 0);
     --primary-foreground: oklch(0.985 0 0);
@@ -959,10 +967,17 @@
 }
 
 .dark {
-    --background: #0f0f0f;
-    --auth-page-bg: #08090c;
-    --auth-panel-bg: #0b0c10;
-    --auth-card-bg: #121318;
+    --glass-alpha: 0.72;
+    --glass-alpha-strong: 0.94;
+    --glass-base-color: #1e2638;
+    --glass-edge: rgba(204, 218, 255, 0.15);
+    --glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.24);
+    --glass-blue: rgba(99, 142, 255, 0.12);
+    --glass-purple: rgba(155, 117, 240, 0.12);
+    --background: #101622;
+    --auth-page-bg: var(--background);
+    --auth-panel-bg: var(--glass-surface);
+    --auth-card-bg: var(--glass-dense-surface);
     --auth-accent: #93c5fd;
     --auth-muted: #8a8b91;
     /* 深色主题下勾选框用浅底 + 深勾，与浅色主题的深底 + 白勾形成互补；
@@ -972,9 +987,9 @@
     --foreground: #ffffff;
     --border: #222222;
     --ring: oklch(0.556 0 0);
-    --card: #181818;
+    --card: var(--glass-dense-surface);
     --card-foreground: #ffffff;
-    --popover: #222222;
+    --popover: var(--glass-dense-surface);
     --popover-foreground: #ffffff;
     --primary: oklch(0.922 0 0);
     --primary-foreground: oklch(0.205 0 0);
@@ -997,8 +1012,8 @@
     --workspace-page: var(--workspace-canvas);
     --workspace-navigation: var(--workspace-page);
     --workspace-content: var(--workspace-page);
-    --workspace-surface: #181818;
-    --workspace-surface-strong: #2a2a2a; /* composio surface-strong（原 #222222 并入 elevated 语义）*/
+    --workspace-surface: var(--glass-surface);
+    --workspace-surface-strong: var(--glass-dense-surface);
     --workspace-border: #222222;
     --workspace-border-strong: #333333;
     --workspace-grid-line: rgba(255, 255, 255, 0.038);
@@ -1028,7 +1043,7 @@
     --border-semantic: var(--color-neutral-800);
     --bg-secondary: #141414;
     --bg-tertiary: #181818;
-    --surface: #1f1f1f;
+    --surface: var(--glass-surface);
     --surface-hover: rgba(255, 255, 255, 0.07);
     --surface-active: rgba(255, 255, 255, 0.12);
     --muted: var(--color-neutral-900);
@@ -1050,7 +1065,7 @@
     --cn-muted: var(--color-neutral-400);
     --cn-faint: var(--color-neutral-500);
     --cn-stroke: rgba(255, 255, 255, 0.1);
-    --cn-fill: rgba(255, 255, 255, 0.04);
+    --cn-fill: var(--glass-dense-surface);
     --cn-active-stroke: var(--workspace-accent);
     --cn-active-stroke-soft: var(--workspace-accent-soft);
 
@@ -1059,7 +1074,7 @@
     --cn-spatial-shadow: rgba(0, 0, 0, 0.4);
     --cn-spatial-glow: rgba(125, 162, 255, 0.15);
     --cn-spatial-glow-strong: rgba(125, 162, 255, 0.25);
-    --cn-spatial-elevated: var(--color-neutral-900);
+    --cn-spatial-elevated: var(--glass-dense-surface);
     --cn-spatial-toolbar-border: rgba(255, 255, 255, 0.1);
 
     --previs-sequencer-surface: #111315;
@@ -1140,13 +1155,13 @@
     --shadow-2xl: 0 24px 60px rgba(255, 255, 255, 0.1);
 
     /* 抬升 token：暗色下继续用黑影压深，只把 hairline 换成浅色描边。 */
-    --elevation-hairline: inset 0 0 0 1px rgba(255, 255, 255, 0.085);
-    --elevation-card: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --elevation-card-hover: 0 12px 30px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.32);
-    --elevation-overlay: 0 28px 72px rgba(0, 0, 0, 0.62), 0 4px 14px rgba(0, 0, 0, 0.4);
+    --elevation-hairline: inset 0 0 0 1px var(--glass-edge);
+    --elevation-card: var(--glass-shadow);
+    --elevation-card-hover: 0 16px 44px rgba(0, 0, 0, 0.3);
+    --elevation-overlay: var(--glass-shadow);
     --elevation-panel: -20px 0 60px rgba(0, 0, 0, 0.56);
 
-    --surface-card: rgba(255, 255, 255, 0.035);
+    --surface-card: var(--glass-dense-surface);
     --surface-card-hover: rgba(255, 255, 255, 0.062);
     --project-library-surface: #151515;
     --project-library-cover-surface: #1c1c1c;
@@ -1154,9 +1169,9 @@
     --project-library-shadow: none;
 
     /* === 新卡片系统 Token - Dark（对应 docs/ui-design-system.md）=== */
-    --card-surface: #171717;
+    --card-surface: var(--glass-dense-surface);
     --card-surface-hover: #1e1e1e;
-    --card-surface-raised: #252525;
+    --card-surface-raised: var(--glass-dense-surface);
 
     --card-border: transparent;
     --card-border-hover: transparent;
@@ -1372,6 +1387,7 @@
     }
     body {
         background: var(--workspace-page);
+        background-image: var(--glass-environment);
         color: var(--foreground);
     }
     #root {
@@ -1466,8 +1482,8 @@
         --workspace-page: var(--workspace-canvas);
         --workspace-navigation: var(--workspace-page);
         --workspace-content: var(--workspace-page);
-        --workspace-surface: rgba(255, 255, 255, 0.74);
-        --workspace-surface-strong: rgba(255, 255, 255, 1);
+        --workspace-surface: var(--glass-surface);
+        --workspace-surface-strong: var(--glass-dense-surface);
         --workspace-border: rgba(17, 17, 17, 0.1);
         --workspace-border-strong: rgba(17, 17, 17, 0.2);
         --workspace-grid-line: rgba(17, 17, 17, 0.035);
@@ -1487,8 +1503,8 @@
         --workspace-page: var(--workspace-canvas);
         --workspace-navigation: var(--workspace-page);
         --workspace-content: var(--workspace-page);
-        --workspace-surface: rgba(18, 18, 18, 0.76);
-        --workspace-surface-strong: rgba(22, 22, 22, 1);
+        --workspace-surface: var(--glass-surface);
+        --workspace-surface-strong: var(--glass-dense-surface);
         --workspace-border: rgba(255, 255, 255, 0.09);
         --workspace-border-strong: rgba(255, 255, 255, 0.18);
         --workspace-grid-line: rgba(255, 255, 255, 0.026);
@@ -1565,25 +1581,25 @@
     }
 
     body.app-spatial-overlays {
-        --workspace-overlay-bg: rgba(244, 244, 245, 1);
-        --workspace-overlay-bg-strong: rgba(250, 250, 250, 1);
+        --workspace-overlay-bg: var(--glass-surface);
+        --workspace-overlay-bg-strong: var(--glass-dense-surface);
         --workspace-overlay-border: rgba(17, 17, 17, 0.22);
         --workspace-overlay-divider: rgba(17, 17, 17, 0.1);
         --workspace-overlay-highlight: rgba(255, 255, 255, 0.86);
         --workspace-overlay-hover: rgba(17, 17, 17, 0.065);
         --workspace-overlay-selected: rgba(17, 17, 17, 0.1);
-        --workspace-overlay-shadow: 0 26px 72px rgba(15, 23, 42, 0.18), 0 4px 18px rgba(15, 23, 42, 0.08);
+        --workspace-overlay-shadow: var(--glass-shadow);
     }
 
     .dark body.app-spatial-overlays {
-        --workspace-overlay-bg: rgba(10, 10, 11, 1);
-        --workspace-overlay-bg-strong: rgba(15, 15, 16, 1);
+        --workspace-overlay-bg: var(--glass-surface);
+        --workspace-overlay-bg-strong: var(--glass-dense-surface);
         --workspace-overlay-border: rgba(255, 255, 255, 0.22);
         --workspace-overlay-divider: rgba(255, 255, 255, 0.105);
         --workspace-overlay-highlight: rgba(255, 255, 255, 0.2);
         --workspace-overlay-hover: rgba(255, 255, 255, 0.075);
         --workspace-overlay-selected: rgba(255, 255, 255, 0.115);
-        --workspace-overlay-shadow: 0 30px 84px rgba(0, 0, 0, 0.62), 0 8px 24px rgba(0, 0, 0, 0.34);
+        --workspace-overlay-shadow: var(--glass-shadow);
     }
 
     /* 全局轻量通知与消息提示框 */
@@ -1626,7 +1642,7 @@
 
     .dark .ant-tooltip .ant-tooltip-inner {
         color: #f4f4f5 !important;
-        background: #1e1e20 !important;
+        background: var(--popover) !important;
         border: 1px solid rgba(255, 255, 255, 0.14) !important;
     }
 
@@ -2093,11 +2109,11 @@
         min-height: var(--space-10);
         border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
         border-radius: var(--r-2xl);
-        background: color-mix(in srgb, var(--dock-surface) 72%, transparent) !important;
+        background: var(--dock-surface) !important;
         padding: var(--space-half) var(--space-2);
-        box-shadow: 0 10px 28px color-mix(in srgb, black 16%, transparent);
-        -webkit-backdrop-filter: blur(22px) saturate(140%);
-        backdrop-filter: blur(22px) saturate(140%);
+        box-shadow: var(--glass-shadow);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+        backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     }
 
     /* 顶部操作区复用底部 FloatingDock 的命令状态，保持两组浮层在不同主题下有同一套反馈。 */
@@ -7325,7 +7341,7 @@ html:not(.dark) .creation-studio-control[aria-expanded="true"] { background: #e7
     .aceternity-floating-dock {
         isolation: isolate;
         transform-origin: bottom center;
-        box-shadow: 0 24px 72px rgba(15, 23, 42, 0.18);
+        box-shadow: var(--glass-shadow);
     }
 
     /* Dock 命令按钮：BottomMenu 式干净状态——透明默认 + hover/active 仅换底色，
@@ -7448,6 +7464,8 @@ html:not(.dark) .creation-studio-control[aria-expanded="true"] { background: #e7
     .aceternity-floating-panel {
         transform-origin: bottom center;
         box-shadow: var(--elevation-overlay);
+        backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     }
 
     .canvas-asset-tray-panel {
@@ -7897,12 +7915,12 @@ html:not(.dark) .canvas-generation-settings-trigger.ant-btn[aria-expanded="true"
     .canvas-floating-dock {
         border: 0 !important;
         border-radius: var(--r-2xl) !important;
-        background: color-mix(in srgb, var(--dock-surface) 72%, transparent) !important;
+        background: var(--dock-surface) !important;
         max-width: calc(100vw - 24px);
         scrollbar-width: none;
-        box-shadow: 0 10px 28px color-mix(in srgb, black 16%, transparent) !important;
-        -webkit-backdrop-filter: blur(22px) saturate(140%);
-        backdrop-filter: blur(22px) saturate(140%);
+        box-shadow: var(--glass-shadow) !important;
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+        backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     }
 
     .canvas-floating-dock .aceternity-dock-command:not(.is-labeled) {
@@ -10335,6 +10353,7 @@ html:not(.dark) .canvas-generation-settings-trigger.ant-btn[aria-expanded="true"
         box-shadow: none !important;
         filter: none !important;
         backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
     }
 
     /* LibTV 式默认选择光标：短促圆润的黑色箭头配细白描边，不使用发光或阴影。 */

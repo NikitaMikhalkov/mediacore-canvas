@@ -73,6 +73,27 @@ describe("site appearance and editable skin library", () => {
         expect(getSkinAntOverrides(custom, "light")).toMatchObject({ primary: "#123456", switchChecked: "#17864b", danger: "#c0262d", dangerHover: "#9f1f25", buttonRadius: 14, motionNormal: 260 });
     });
 
+    test("custom skin colors retain A surface density and user geometry in either theme", () => {
+        const custom = duplicateSkinDefinition(DEFAULT_CLASSIC_SKIN, ["classic"]);
+        custom.tokens.light.workspace = "#f0ddee";
+        custom.tokens.dark.workspace = "#302840";
+        custom.tokens.light.overlay = "#fff0f5";
+        custom.tokens.dark.overlay = "#352840";
+        custom.tokens.components.overlayRadius = 18;
+        const assigned = new Map<string, string>();
+        const target = { documentElement: { dataset: {}, style: {
+            removeProperty: (key: string) => assigned.delete(key),
+            setProperty: (key: string, value: string) => assigned.set(key, value),
+        } } } as unknown as Document;
+        applySkinTheme(custom, "light", target);
+        expect(assigned.get("--workspace-surface")).toBe("color-mix(in srgb, #f0ddee 64%, transparent)");
+        expect(assigned.get("--popover")).toBe("color-mix(in srgb, #fff0f5 92%, transparent)");
+        expect(assigned.get("--overlay-radius")).toBe("18px");
+        applySkinTheme(custom, "dark", target);
+        expect(assigned.get("--workspace-surface")).toBe("color-mix(in srgb, #302840 72%, transparent)");
+        expect(getSkinAntOverrides(custom, "dark").elevatedBackground).toBe("color-mix(in srgb, #352840 94%, transparent)");
+    });
+
     test("legacy custom themes backfill new switch and destructive interaction colors", () => {
         const legacy = duplicateSkinDefinition(DEFAULT_CLASSIC_SKIN, ["classic"]) as SkinFixture;
         legacy.tokens.light.primary = "#123456";

@@ -72,7 +72,7 @@ export function EmptyImageContent({ node, theme, isBatchRoot, batchCount, batchP
     const content = (
         <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color: theme.node.placeholder }}>
             <div className="flex size-14 items-center justify-center rounded-[var(--r-lg)]" style={{ background: theme.toolbar.activeBg }}>
-                <ImageIcon className="size-6 opacity-30" />
+                <ImageIcon className="size-6 opacity-85" />
             </div>
             {isCharacterReference ? (
                 <div className="max-w-[80%] text-center">
@@ -132,7 +132,7 @@ export function VideoNodeContent({ node, theme, mediaActive = false, onMediaPlay
         };
     }, [node.id, node.metadata?.naturalHeight, node.metadata?.naturalWidth, subtitleEntries.length, updateMediaNode, url]);
 
-    if (!node.metadata?.content && !node.metadata?.storageKey) return <EmptyMediaContent icon={<Video className="size-7 opacity-35" />} label="空视频节点" color={theme.node.placeholder} />;
+    if (!node.metadata?.content && !node.metadata?.storageKey) return <EmptyMediaContent icon={<Video className="size-7 opacity-85" />} label="空视频节点" color={theme.node.placeholder} />;
     if (!mediaActive) return <InactiveVideoPreview node={node} theme={theme} onPlay={() => onMediaPlayRequest?.(node.id)} />;
 
     const sourceRatio = (videoSize?.width || node.metadata?.naturalWidth || node.width) / Math.max(1, videoSize?.height || node.metadata?.naturalHeight || node.height);
@@ -193,7 +193,7 @@ export function inferVideoHasAudio(metadata: CanvasNodeData["metadata"]): boolea
 }
 
 export function AudioNodeContent({ node, theme }: CanvasNodeContentProps) {
-    if (!node.metadata?.content && !node.metadata?.storageKey) return <EmptyMediaContent icon={<Music2 className="size-7 opacity-35" />} label="空音频节点" color={theme.node.placeholder} />;
+    if (!node.metadata?.content && !node.metadata?.storageKey) return <EmptyMediaContent icon={<Music2 className="size-7 opacity-85" />} label="空音频节点" color={theme.node.placeholder} />;
     return <CanvasAudioPlayer node={node} theme={theme} />;
 }
 

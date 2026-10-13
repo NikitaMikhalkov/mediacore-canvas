@@ -201,7 +201,7 @@ function DrawingContent({ node, theme, drawingProjectId }: CanvasNodeContentProp
                     </div>
                 </div>
             )}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 px-4 pb-3 pt-12" style={{ background: `linear-gradient(to top, ${theme.node.fill}, ${theme.node.fill}e6 55%, transparent)` }}>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 px-4 pb-3 pt-12" style={{ background: `linear-gradient(to top, ${theme.node.fill}, color-mix(in srgb, ${theme.node.fill} 90%, transparent) 55%, transparent)` }}>
                 <div className="min-w-0">
                     <div className="truncate text-xs font-semibold" title={node.title || "绘图"}>
                         {node.title || "绘图"}
