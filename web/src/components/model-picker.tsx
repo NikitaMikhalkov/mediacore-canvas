@@ -177,6 +177,7 @@ export function ModelPicker({
             className={cn(
                 "canvas-model-picker-menu creation-model-picker-menu max-w-[calc(100vw-24px)]",
                 singleChannelModels || activeGroupKey === null ? "is-brand-list" : "is-model-list",
+                singleChannelModels && "is-direct-list",
             )}
             style={{ background: theme.node.panel, color: theme.node.text, "--canvas-model-picker-available-height": `${availableHeight}px` } as CSSProperties}
             role="listbox"

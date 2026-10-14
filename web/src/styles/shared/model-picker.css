@@ -631,6 +631,9 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
 .canvas-model-picker-menu.is-brand-list {
     width: min(360px, calc(100vw - 24px));
 }
+.canvas-model-picker-menu.is-brand-list.is-direct-list {
+    width: min(280px, calc(100vw - 24px));
+}
 .canvas-model-picker-menu.is-model-list {
     width: min(800px, calc(100vw - 24px));
     overflow: hidden;
@@ -761,14 +764,15 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
 
 .canvas-model-picker-direct .canvas-model-picker-option-heading {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
+    gap: 3px;
 }
 
 .canvas-model-picker-direct .canvas-model-picker-option-price {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
 }
 
 .canvas-model-picker-description {
