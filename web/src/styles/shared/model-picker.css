@@ -632,7 +632,7 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     width: min(360px, calc(100vw - 24px));
 }
 .canvas-model-picker-menu.is-brand-list.is-direct-list {
-    width: min(280px, calc(100vw - 24px));
+    width: min(220px, calc(100vw - 24px));
 }
 .canvas-model-picker-menu.is-model-list {
     width: min(800px, calc(100vw - 24px));
@@ -739,22 +739,22 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
 
 .canvas-model-picker-direct .canvas-model-picker-option {
     display: grid;
-    grid-template-columns: 14px minmax(0, 1fr);
-    gap: 6px;
+    grid-template-columns: minmax(0, 1fr) 14px;
+    gap: 0;
 }
 
 .canvas-model-picker-direct .canvas-model-picker-option > span:first-child {
-    grid-column: 2;
+    grid-column: 1 / -1;
     grid-row: 1;
     min-height: 36px;
     align-items: flex-start;
 }
 
 .canvas-model-picker-direct .canvas-model-picker-option-check {
-    grid-column: 1;
+    grid-column: 2;
     grid-row: 1;
-    align-self: center;
-    justify-self: start;
+    align-self: end;
+    justify-self: end;
     margin-left: 0;
 }
 
