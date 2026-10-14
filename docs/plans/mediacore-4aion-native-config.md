@@ -4,23 +4,25 @@
 
 ## 渠道和模型
 
-在「系统模型」创建以下渠道，密钥通过管理员界面私密填写，不写入仓库文件、浏览器普通用户配置或任务正文。`X-Aion-Model` 使用渠道已有的额外请求头编辑器设置。
+在「系统模型」只保留一个 `4aion` 渠道，Base URL 为 `https://4aion.com`，统一管理密钥、代理和并发，其下配置九个模型。原生模型级协议决定路径和鉴权，不按型号拆分渠道。密钥通过管理员界面私密填写，不写入仓库文件、浏览器普通用户配置或任务正文。
 
-| 渠道                | Base URL               | 模型 ID                           | 原生请求协议           | 额外请求头                                      |
-| ------------------- | ---------------------- | --------------------------------- | ---------------------- | ----------------------------------------------- |
-| 4aion 文本          | `https://4aion.com/v1` | `gpt-6.1-sol`                     | `chat-completion`      | `X-Aion-Model: gpt-6.1-sol`                     |
-| 4aion 图片          | `https://4aion.com/v1` | `gpt-image-2-plus`                | `openai-image`         | `X-Aion-Model: gpt-image-2-plus`                |
-| 4aion Seedance Mini | `https://4aion.com`    | `doubao-seedance-2-0-mini-260615` | `volcengine-ark-video` | `X-Aion-Model: doubao-seedance-2-0-mini-260615` |
-| 4aion Grok 图片 | `https://4aion.com/v1` | `grok-imagine-image` | `grok-image` | `X-Aion-Model: grok-imagine-image` |
-| 4aion Gemini 图片 | `https://4aion.com` | `gemini-3.1-flash-image-preview` | `gemini-image` | `X-Aion-Model: gemini-3.1-flash-image-preview` |
-| 4aion Seedance 标准 | `https://4aion.com` | `doubao-seedance-2-0-260128` | `volcengine-ark-video` | `X-Aion-Model: doubao-seedance-2-0-260128` |
-| 4aion Seedance Fast | `https://4aion.com` | `doubao-seedance-2-0-fast-260128` | `volcengine-ark-video` | `X-Aion-Model: doubao-seedance-2-0-fast-260128` |
-| 4aion MiniMax 文本 | `https://4aion.com/v1` | `minimax-m3` | `chat-completion` | `X-Aion-Model: minimax-m3` |
-| 4aion Claude 文本 | `https://4aion.com/v1` | `claude-fable-5` | `chat-completion` | `X-Aion-Model: claude-fable-5` |
+| 模型 ID | 原生请求协议 |
+| --- | --- |
+| `gpt-6.1-sol` | `chat-completion` |
+| `gpt-image-2-plus` | `openai-image` |
+| `doubao-seedance-2-0-mini-260615` | `volcengine-ark-video` |
+| `grok-imagine-image` | `grok-image` |
+| `gemini-3.1-flash-image-preview` | `gemini-image` |
+| `doubao-seedance-2-0-260128` | `volcengine-ark-video` |
+| `doubao-seedance-2-0-fast-260128` | `volcengine-ark-video` |
+| `minimax-m3` | `chat-completion` |
+| `claude-fable-5` | `chat-completion` |
 
 模型使用相同的上游 ID，能力分别选择文本、图片、视频。能力参数先复用协议的原生默认值；Mini 的分辨率限定为 `480p`、`720p`，不沿用通用 Seedance 的 `1080p`。售卖规格和积分价格通过原生模型价格档配置，未确认售价的模型保持停用，不能以零价格自动开放。
 
-额外请求头是渠道级配置：一个精确 Seedance 型号对应一个渠道，新增其他型号时复制渠道并同时修改模型 ID 和请求头；价格档也不能改成另一个上游型号。这样创建与轮询均使用相同的精确型号，不需要新增动态请求头适配代码。
+不在共享渠道固定 `X-Aion-Model` 为某个型号，以免覆盖其他模型的路由。创建请求由原生协议发送精确模型 ID；已用已有 Mini 视频任务只读核对，不带该头与带精确型号头均返回 200/成功。该观测不等于新型号生成已验收；若后续某条协议确实要求型号头，应在请求边界局部适配，不能再按型号拆渠道。
+
+此前按型号拆渠道是错误的部署选择，现已归并：保留原 Mini 渠道作为 `4aion`，在无活动生成任务或 Agent 执行时，通过带校验的单次事务迁移其余八条模型归属，保留全部模型 ID、价格档、能力与启用状态。八个空旧渠道软归档，历史任务及账单不重写。操作前完整备份及私密配置快照已保存，原生渠道保存接口刷新运行时目录；没有改服务代码或重启。管理端和公开目录均为一个渠道九个模型，九项原生报价通过，Chrome 管理页已确认。
 
 管理员的「拉取模型」是只读目录查询，不能把所有返回型号自动启用。「测试模型」会真实消费供应商额度，不能当作免费的连接检查。
 

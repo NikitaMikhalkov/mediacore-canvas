@@ -12,7 +12,7 @@
 
 ## 九型号配置表
 
-表中 `B` 表示协议从服务端 Key 自动产生 `Authorization: Bearer <KEY>`；JSON 自动设置 `Content-Type: application/json`。`M` 表示额外渠道头 `X-Aion-Model: <该行精确型号>`；视频创建和轮询都须携带。Base URL 均指 Mediacore 渠道配置，所有实际调用只走 4aion。
+表中 `B` 表示协议从服务端 Key 自动产生 `Authorization: Bearer <KEY>`；JSON 自动设置 `Content-Type: application/json`。`M` 表示供应商示例中的 `X-Aion-Model: <该行精确型号>`，不能据此推断必须按型号拆分渠道。表内 Base URL 为研究时的协议配置；当前统一渠道根地址及观测边界以[原生渠道配置](../plans/mediacore-4aion-native-config.md)为准，所有实际调用只走 4aion。
 
 | 精确 Provider Model Key | 能力 / 原生协议 | Base URL | 头部 | 参数与未解决项 |
 |---|---|---|---|---|
@@ -35,7 +35,7 @@ Google [官方更新记录](https://ai.google.dev/gemini-api/docs/changelog#may-
 ## 仓库复用边界与必要差异
 
 1. **模型和参数用配置。** [ChannelModelRequest](../../backend/internal/app/channel_models.go)已有精确 `providerModelKey`、`protocol`、`capabilityConfig` 和价格档；[默认能力](../../backend/internal/app/model_capability_defaults.go)不是 4aion 白名单。Ark 默认时长从 1 秒开始，且默认包含 1080p；新增标准/Fast 应配置 4–15 秒，Fast 去掉 1080p，既有 Mini 保持不动。Grok 使用 1K/2K、比例枚举、最多单参考图，关闭 mask、透明背景和不支持的格式；Gemini 先选现有 1K/2K/4K 子集，关闭蒙版/透明背景，参考数量以网关承诺收紧。
-2. **三个 Seedance 分别渠道。** [provider.go](../../backend/internal/app/provider.go)从渠道加载 `HeadersJSON`，模型本身没有独立头配置。精确 M 头不同，沿用 Mini、另建标准/Fast 渠道即可；不要把三个型号塞进同一个固定型号头渠道。没有固定 M 头要求的文本型号可共享原生文本渠道。
+2. **同一供应商统一渠道。** 此前根据静态型号头建议拆分 Seedance 渠道，属于错误部署建议，已修正。[provider.go](../../backend/internal/app/provider.go)原生支持同一渠道下不同模型各自选择协议。共享渠道不固定 M 头；已有 Mini 任务不带该头可只读查询成功，但尚未以此证明全部型号的创建/轮询。当前为一个 `4aion` 渠道九个模型，若后续真实证据证明某接口必须带型号头，再局部处理请求，不能靠增加渠道规避。
 3. **媒体原生插件已经存在。** [OpenAI 图片](../../plugin-packages/openai-images/manifest.json)、[Grok 图片](../../plugin-packages/xai-grok-images/manifest.json)、[Gemini 图片](../../plugin-packages/google-gemini-image/manifest.json)、[Seedance](../../plugin-packages/volcengine-ark-seedance/manifest.json)分别处理请求和结果。当前 OpenAI/Grok 插件有参考图时已切换 `/v1/images/edits`（前者 JSON `images[].image_url`，后者 JSON `image.url`）；旧的内置说明仍称没有 edit，研究以源码为准。4aion 没有充分逐模型编辑编码合同，不能仅见 edits 路径就宣称兼容。必要时只修改现有插件/能力配置并补对应 fixture，不新增 4aion 总适配器。
 4. **Gemini 鉴权可原样复用。** [原生鉴权](../../backend/internal/app/provider_protocol_auth.go)发 `x-goog-api-key`，与本次 `/v1beta/models` 只读结果相符；图片请求走 `/v1beta/models/{model}:generateContent`。通用文档的 Bearer 说明不足以推翻已观测的原生鉴权，暂无改鉴权代码的理由。[出站头校验](../../backend/internal/outbound/outbound.go)禁止自定义 `Authorization` 或 `x-goog-api-key`，也不需要绕过。不要用 Chat 文本解析器接图片。
 5. **任务状态机继续复用。** Seedance 插件已创建/轮询/解析 `content.video_url`；[原生轮询](../../backend/internal/app/provider_video_polling.go)间隔 30 秒，满足前次 4aion 建议不频于约 15 秒。`seed/camera_fixed` 已有扩展参数；素材上传 Action、取消、幂等、编辑/延长、视频回调等不在本次简单换型号的已证明范围。
