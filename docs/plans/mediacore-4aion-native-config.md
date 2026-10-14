@@ -11,12 +11,28 @@
 | 4aion 文本          | `https://4aion.com/v1` | `gpt-6.1-sol`                     | `chat-completion`      | `X-Aion-Model: gpt-6.1-sol`                     |
 | 4aion 图片          | `https://4aion.com/v1` | `gpt-image-2-plus`                | `openai-image`         | `X-Aion-Model: gpt-image-2-plus`                |
 | 4aion Seedance Mini | `https://4aion.com`    | `doubao-seedance-2-0-mini-260615` | `volcengine-ark-video` | `X-Aion-Model: doubao-seedance-2-0-mini-260615` |
+| 4aion Grok 图片 | `https://4aion.com/v1` | `grok-imagine-image` | `grok-image` | `X-Aion-Model: grok-imagine-image` |
+| 4aion Gemini 图片 | `https://4aion.com` | `gemini-3.1-flash-image-preview` | `gemini-image` | `X-Aion-Model: gemini-3.1-flash-image-preview` |
+| 4aion Seedance 标准 | `https://4aion.com` | `doubao-seedance-2-0-260128` | `volcengine-ark-video` | `X-Aion-Model: doubao-seedance-2-0-260128` |
+| 4aion Seedance Fast | `https://4aion.com` | `doubao-seedance-2-0-fast-260128` | `volcengine-ark-video` | `X-Aion-Model: doubao-seedance-2-0-fast-260128` |
+| 4aion MiniMax 文本 | `https://4aion.com/v1` | `minimax-m3` | `chat-completion` | `X-Aion-Model: minimax-m3` |
+| 4aion Claude 文本 | `https://4aion.com/v1` | `claude-fable-5` | `chat-completion` | `X-Aion-Model: claude-fable-5` |
 
 模型使用相同的上游 ID，能力分别选择文本、图片、视频。能力参数先复用协议的原生默认值；Mini 的分辨率限定为 `480p`、`720p`，不沿用通用 Seedance 的 `1080p`。售卖规格和积分价格通过原生模型价格档配置，未确认售价的模型保持停用，不能以零价格自动开放。
 
 额外请求头是渠道级配置：一个精确 Seedance 型号对应一个渠道，新增其他型号时复制渠道并同时修改模型 ID 和请求头；价格档也不能改成另一个上游型号。这样创建与轮询均使用相同的精确型号，不需要新增动态请求头适配代码。
 
 管理员的「拉取模型」是只读目录查询，不能把所有返回型号自动启用。「测试模型」会真实消费供应商额度，不能当作免费的连接检查。
+
+### 当前线上内部试用
+
+用户反馈画布无法选择模型后，确认先启用文本、图片，每次 1 积分，保留现有视频设置，商业售价后定。已使用原生渠道和价格档配置开放，创作目录返回三个可用模型；文本、图片原生报价均为 1 积分，真实画布文本选择器及图片工作台选择器已显示对应模型可选。未修改生成代码。
+
+用户随后要求补齐本地示范文件的九个型号，并确认新增型号统一每次 1 积分，仅供内部试用。上表新增六项已用原生后台配置并启用，原有三项逐项读回确认未改。当前目录为文本、图片、视频各三型号，六个新增型号的能力筛选和原生报价均通过；未提交供应商生成请求，不把配置可选称为逐型号生成已验收。
+
+新增 Seedance 标准/Fast 使用 4–15 秒范围，Fast 限 480p/720p；Gemini 使用原生 `x-goog-api-key` 和 `/v1beta` 路径，原生模型列表只读鉴权返回 200。`minimax-m3` 按文本接入，不能照示范分组当作视频生成模型。逐型号依据和未验证边界见[九型号映射](../research/4aion-requested-models.md)。
+
+用户选择亲自在画布试用，线上生成、保存、下载及画布读回仍待确认；此前本机成功记录不替代线上闭环。内部试用价不作为商业售价。
 
 ## 仅使用平台的 4aion 渠道
 
