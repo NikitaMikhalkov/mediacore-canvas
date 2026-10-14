@@ -40,6 +40,22 @@ function fixture() {
 
 const requirements: ModelRequirements = { capability: "video", videoSeconds: "5", options: { vquality: "1080p" } };
 
+test("single-channel selection shows only the model name in the trigger", () => {
+    const config = fixture();
+    const markup = renderToStaticMarkup(<ModelPicker config={config} value={config.model} capability="video" onChange={() => {}} />);
+    expect(markup).toContain("MiniMax H3");
+    expect(markup).not.toContain("多图一致性");
+    expect(markup).not.toContain("系统模型");
+});
+
+test("multiple channels for one model retain the chosen channel label", () => {
+    const config = fixture();
+    config.channels.push({ ...config.channels[0], id: "other", name: "Other" });
+    config.models.push("other::h3-multi");
+    const markup = renderToStaticMarkup(<ModelPicker config={config} value={config.model} capability="video" onChange={() => {}} />);
+    expect(markup).toContain("MiniMax H3 · 多图一致性");
+});
+
 test("candidate rows show their configured prices instead of applying the previous model's specifications", () => {
     const config = fixture();
     for (const theme of [canvasThemes.light, canvasThemes.dark]) {

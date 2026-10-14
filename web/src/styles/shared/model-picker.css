@@ -734,6 +734,18 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     max-width: 100%;
 }
 
+.canvas-model-picker-direct .canvas-model-picker-option-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+}
+
+.canvas-model-picker-direct .canvas-model-picker-option-price {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+}
+
 .canvas-model-picker-description {
     font-size: var(--fs-caption);
     min-height: 1.5em;
