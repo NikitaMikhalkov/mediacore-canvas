@@ -184,7 +184,21 @@ export function undoAgentCanvasRun(runId: string, input: { stepId?: string; expe
 }
 
 export async function decideAgentApproval(runId: string, approvalId: string, decision: "approve" | "reject", reason?: string, signal?: AbortSignal, mediaSettings?: AgentMediaSettings) {
-    return http.post<{ accepted: boolean }>(`/agent/runs/${encodeURIComponent(runId)}/approvals/${encodeURIComponent(approvalId)}/decision`, { decision, reason: reason?.trim() || undefined, ...(mediaSettings ? { mediaSettings } : {}) }, { signal });
+    // 审批预览还包含服务端生成的提示词和引用，此接口只提交可编辑选项。
+    const settings = mediaSettings
+        ? {
+              logicalModelId: mediaSettings.logicalModelId,
+              channelId: mediaSettings.channelId,
+              channelModelKey: mediaSettings.channelModelKey,
+              size: mediaSettings.size,
+              quality: mediaSettings.quality,
+              durationSeconds: mediaSettings.durationSeconds,
+              videoGenerateAudio: mediaSettings.videoGenerateAudio,
+              videoWatermark: mediaSettings.videoWatermark,
+              videoArkPrivateAssetUpload: mediaSettings.videoArkPrivateAssetUpload,
+          }
+        : undefined;
+    return http.post<{ accepted: boolean }>(`/agent/runs/${encodeURIComponent(runId)}/approvals/${encodeURIComponent(approvalId)}/decision`, { decision, reason: reason?.trim() || undefined, ...(settings ? { mediaSettings: settings } : {}) }, { signal });
 }
 
 export function subscribeAgentEvents(runId: string, onEvent: (event: AgentEvent) => void, options: { after?: number; onError?: (error: unknown) => void; onConnectionChange?: (status: "connecting" | "connected" | "reconnecting" | "disconnected") => void; timeoutMs?: number } = {}) {
