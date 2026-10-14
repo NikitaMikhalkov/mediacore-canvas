@@ -143,8 +143,8 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
     const [scenePresets, setScenePresets] = useState<SkillPreset[]>([]);
     const [presetApplyingId, setPresetApplyingId] = useState("");
     const presetApplyingRef = useRef<string | null>(null);
-    // 连接器条默认展示，关闭后本次会话内不再显示。
-    const [connectorsVisible, setConnectorsVisible] = useState(true);
+    // 连接器仍在研发，暂时隐藏，保留组件以便后续恢复。
+    const [connectorsVisible, setConnectorsVisible] = useState(false);
     const panelLayout = useAgentPanelLayout();
     const lastSeqRef = useRef(0);
     const canvasSyncRef = useRef<ReturnType<typeof createAgentCanvasSync> | null>(null);
