@@ -13,7 +13,7 @@ import "@/styles/workspace-menus.css";
 const workspaceTheme = getWorkspaceAntThemeConfig();
 
 export default function UserLayout({ children }: { children: ReactNode }) {
-    const { pathname } = useLocation();
+    const { pathname, search } = useLocation();
     const adminWorkspace = pathname === "/admin" || pathname.startsWith("/admin/");
     const spatialWorkbench = isSpatialWorkbenchPath(pathname);
     const productWorkspace = !adminWorkspace && !/^\/canvas\/[^/]+(?:\/|$)/.test(pathname);
@@ -32,6 +32,8 @@ export default function UserLayout({ children }: { children: ReactNode }) {
     }, [adminWorkspace, spatialWorkbench, productWorkspace]);
 
     if (adminWorkspace) return children;
+    // Throwaway homepage design study; the existing route and auth boundary stay intact.
+    if (import.meta.env.DEV && (pathname === "/" || pathname === "/create") && new URLSearchParams(search).has("variant")) return children;
 
     return (
         <ConfigProvider

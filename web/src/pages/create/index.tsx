@@ -41,6 +41,7 @@ import { CreationLoginDialog } from "./creation-login-dialog";
 
 const AssetLibraryPickerModal = lazy(() => import("@/components/assets/asset-library-picker-modal").then((module) => ({ default: module.AssetLibraryPickerModal })));
 const loadCreationRuntime = () => import("./creation-runtime");
+const CreationGlassPrototype = import.meta.env.DEV ? lazy(() => import("./prototype/creation-glass-prototype")) : null;
 type CreationRuntime = Awaited<ReturnType<typeof loadCreationRuntime>>;
 
 const TEXT_STREAMING_PREF_KEY = "creation.composer.text-streaming";
@@ -1051,6 +1052,10 @@ export default function CreatePage() {
         onSubmit: () => void submit(),
     };
 
+
+    if (CreationGlassPrototype && new URLSearchParams(location.search).has("variant")) {
+        return <Suspense fallback={null}><CreationGlassPrototype /></Suspense>;
+    }
 
     return <>
         <div className="creation-home relative flex h-full min-h-0 flex-col overflow-hidden">

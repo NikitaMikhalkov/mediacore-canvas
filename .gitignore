@@ -80,3 +80,7 @@ backend/tmp_*
 # Keep the runtime in source control; its optional debug map is not deployed.
 /web/public/live2d/live2dcubismcore.min.js.map
 .zocde/
+
+# Throwaway UI study: shared dependency link and isolated Vite cache.
+/web/node_modules
+/web/.prototype-vite-cache/
