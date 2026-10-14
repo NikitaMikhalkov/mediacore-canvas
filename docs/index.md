@@ -1,6 +1,10 @@
 # 影策 · AI 文档索引
 
-面向 AI 的短索引。详细文档维护规则见 [AGENTS.md](../AGENTS.md) 第 10 节「文档同步」。
+面向 AI 的短索引。详细文档维护规则见 [AGENTS.md](../AGENTS.md) 第 9 节「文档与交付」。
+
+## Mediacore 维护
+
+- [Linux 部署与上游更新边界](plans/mediacore-linux-deployment.md#上游更新边界)：保留二开、配置与数据的升级步骤，以及备份、回退和交付记录。
 
 ## 设计沉淀
 
