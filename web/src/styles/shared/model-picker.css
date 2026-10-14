@@ -734,6 +734,31 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     max-width: 100%;
 }
 
+.canvas-model-picker-direct .canvas-model-picker-option {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 14px;
+    gap: 0;
+}
+
+.canvas-model-picker-direct .canvas-model-picker-option > span:first-child {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    min-height: 36px;
+    align-items: flex-start;
+}
+
+.canvas-model-picker-direct .canvas-model-picker-option-check {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: end;
+    justify-self: end;
+    margin-left: 0;
+}
+
+.canvas-model-picker-direct .canvas-model-picker-description:empty {
+    display: none;
+}
+
 .canvas-model-picker-direct .canvas-model-picker-option-heading {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;

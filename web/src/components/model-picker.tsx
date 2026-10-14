@@ -208,7 +208,7 @@ export function ModelPicker({
                                     onChange(model);
                                 }}
                             >
-                                <ModelLabel config={config} model={value} capability={capability} theme={theme} creationVariant showConfiguredModelName={showConfiguredModelName} label={group.label} requirements={requirements} showPrice={showOptionPrices && creditsEnabled} disabledReason={disabledReason} showDescription />
+                                <ModelLabel config={config} model={value} capability={capability} theme={theme} creationVariant showConfiguredModelName={showConfiguredModelName} label={group.label} requirements={requirements} showPrice={showOptionPrices && creditsEnabled} disabledReason={disabledReason} showDescription showAvailability={false} />
                                 <span className="canvas-model-picker-option-check ml-1 shrink-0" aria-hidden="true">{selected ? <Check className="size-full" style={{ color: theme.node.activeStroke }} /> : null}</span>
                             </button>;
                         })}
@@ -343,6 +343,7 @@ export function ModelLabel({
     showPrice,
     disabledReason,
     showDescription,
+    showAvailability = true,
 }: {
     config: AiConfig;
     model: string;
@@ -355,6 +356,7 @@ export function ModelLabel({
     showPrice: boolean;
     disabledReason?: string;
     showDescription: boolean;
+    showAvailability?: boolean;
 }) {
     const meta = modelMenuMeta(model, capability);
     const channel = resolveModelChannel(config, model);
@@ -381,7 +383,7 @@ export function ModelLabel({
                             <ModelPrice price={modelMenuPrice(config, model, capability, true, requirements)} />
                         </span>
                     ) : null}
-                    <ModelAvailabilityBadge availability={modelAvailability(config, model)} available={logicalCost?.available ?? true} showAvailability={channel.scope === "system"} />
+                    <ModelAvailabilityBadge availability={modelAvailability(config, model)} available={logicalCost?.available ?? true} showAvailability={showAvailability && channel.scope === "system"} />
                 </span>
                 <span className={cn("canvas-model-picker-description mt-1 block", showDescription && "is-visible")} style={{ color: theme.node.muted }}>
                     {capabilitySummary}

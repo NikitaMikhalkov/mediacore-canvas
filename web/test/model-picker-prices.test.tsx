@@ -65,6 +65,17 @@ test("candidate rows show their configured prices instead of applying the previo
     }
 });
 
+test("compact rows hide availability statistics while retaining prices and model labels", () => {
+    const config = fixture();
+    const markup = renderToStaticMarkup(
+        <ModelLabel config={config} model={config.model} capability="video" theme={canvasThemes.light} creationVariant showConfiguredModelName={false} label="MiniMax H3" showPrice showDescription showAvailability={false} />,
+    );
+    expect(markup).toContain("MiniMax H3");
+    expect(markup).toContain("0.1-0.2 积分/秒");
+    expect(markup).not.toContain("model-picker-availability");
+    expect(markup).not.toContain("近24");
+});
+
 test("candidate rows do not disguise missing prices as zero", () => {
     const config = fixture();
     config.channels[0].modelCosts![0].logicalPriceTiers = [];
