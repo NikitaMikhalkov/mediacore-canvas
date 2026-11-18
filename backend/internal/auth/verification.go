@@ -64,6 +64,13 @@ func (s *Service) checkVerificationPolicy(p VerificationPolicy, purpose, method 
 	return nil
 }
 func (s *Service) StartVerification(ctx context.Context, actor *model.User, req VerificationRequest) (*VerificationTicket, error) {
+	if req.Purpose == "profile_reauth" {
+		return nil, kernel.Forbidden("此验证方式未开启，请刷新页面")
+	}
+	return s.startVerification(ctx, actor, nil, req)
+}
+
+func (s *Service) startVerification(ctx context.Context, actor *model.User, session *model.AuthSession, req VerificationRequest) (*VerificationTicket, error) {
 	p, err := s.verificationPolicy()
 	if err != nil {
 		return nil, err
@@ -90,12 +97,16 @@ func (s *Service) StartVerification(ctx context.Context, actor *model.User, req 
 			}
 		}
 	}
+	scene := req.Purpose
+	if scene == "profile_reauth" {
+		scene = "login"
+	}
 	if req.Method == "sms" || req.Method == "sms_email" {
 		phone, err = sms.NormalizePhone(req.Phone)
 		if err != nil {
 			return nil, err
 		}
-		enabled, err := s.smsAvailable(req.Purpose)
+		enabled, err := s.smsAvailable(scene)
 		if err != nil {
 			return nil, err
 		}
@@ -110,6 +121,12 @@ func (s *Service) StartVerification(ctx context.Context, actor *model.User, req 
 		}
 		if !verifyPassword(req.Password, actor.PasswordHash) {
 			return nil, kernel.Unauthorized("当前密码不正确")
+		}
+		userID = actor.ID
+	}
+	if req.Purpose == "profile_reauth" {
+		if actor == nil || session == nil {
+			return nil, kernel.Unauthorized("请先登录")
 		}
 		userID = actor.ID
 	}
@@ -129,7 +146,7 @@ func (s *Service) StartVerification(ctx context.Context, actor *model.User, req 
 			userID = user.ID
 		}
 	}
-	if req.Purpose != "login" {
+	if req.Purpose != "login" && req.Purpose != "profile_reauth" {
 		if err := s.contactAvailable(email, phone, userID); err != nil {
 			return nil, err
 		}
@@ -140,6 +157,10 @@ func (s *Service) StartVerification(ctx context.Context, actor *model.User, req 
 	}
 	now := time.Now()
 	v := &model.AuthVerification{ID: kernel.NewID(), TokenHash: HashToken(hex.EncodeToString(secret)), Purpose: req.Purpose, Method: req.Method, UserID: userID, Email: email, Phone: phone, PolicyHash: p.hash(), CreatedAt: now, ExpiresAt: now.Add(10 * time.Minute)}
+	if req.Purpose == "profile_reauth" {
+		v.SessionID = session.ID
+		v.CredentialHash = repository.ProfileCredentialHash(actor.PasswordHash)
+	}
 	var emailCode, smsCode string
 	if email != "" {
 		emailCode, err = randomNumericCode(6)
@@ -184,7 +205,7 @@ func (s *Service) StartVerification(ctx context.Context, actor *model.User, req 
 		return ticket, nil
 	}
 	if phone != "" {
-		if err := s.sms.SendCode(ctx, req.Purpose, phone, smsCode); err != nil {
+		if err := s.sms.SendCode(ctx, scene, phone, smsCode); err != nil {
 			return nil, err
 		}
 	}

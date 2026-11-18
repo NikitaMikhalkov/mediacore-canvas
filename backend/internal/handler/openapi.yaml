@@ -36,7 +36,7 @@ paths:
       parameters:
         - {in: query, name: keyword, schema: {type: string, maxLength: 160}, description: 用户名、昵称、脱敏账号或用户 ID}
         - {in: query, name: event, schema: {type: string, enum: [login, logout]}}
-        - {in: query, name: method, schema: {type: string, enum: [password, email, sms, linuxdo, verification, unknown]}}
+        - {in: query, name: method, schema: {type: string, enum: [password, email, sms, verification, unknown]}}
         - {in: query, name: result, schema: {type: string, enum: [success, failed]}}
         - {in: query, name: ip, schema: {type: string}, description: 精确匹配 IPv4 或 IPv6}
         - {in: query, name: from, schema: {type: string, format: date-time}, description: 包含开始时刻，RFC3339}
@@ -1121,7 +1121,7 @@ paths:
     get:
       tags: [auth]
       summary: 当前用户个人信息及安全能力
-      description: 返回 user、hasPassword、emailEnabled、linuxdoEnabled 和可选 reauthenticatedUntil；个人头像选择覆盖第三方头像。内部密码散列与头像版本字段不返回。
+      description: 返回 user、hasPassword、emailEnabled 和可选 reauthenticatedUntil；个人头像选择覆盖第三方头像。内部密码散列与头像版本字段不返回。
       responses:
         "200":
           $ref: "#/components/responses/Envelope"
@@ -1212,11 +1212,61 @@ paths:
           $ref: "#/components/responses/Error"
         "404":
           $ref: "#/components/responses/Error"
+  /auth/profile/reauth-code:
+    post:
+      tags: [auth]
+      summary: 向当前账号已验证的联系方式发送重认证验证码
+      description: 服务端根据当前账号选择目标；短信使用现有登录场景。返回绑定当前会话的短期 ticket。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method]
+              properties:
+                method: { type: string, enum: [sms, email] }
+      responses:
+        "200":
+          $ref: "#/components/responses/Envelope"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "429":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /auth/profile/reauth:
+    post:
+      tags: [auth]
+      summary: 验证当前会话的联系方式验证码
+      description: 成功后当前会话获得五分钟重认证标记，不创建新会话。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ticket]
+              properties:
+                ticket: { type: string }
+                emailCode: { type: string, pattern: "^[0-9]{6}$" }
+                smsCode: { type: string, pattern: "^[0-9]{6}$" }
+      responses:
+        "200":
+          $ref: "#/components/responses/Envelope"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "429":
+          $ref: "#/components/responses/Error"
   /auth/profile/password:
     post:
       tags: [auth]
       summary: 修改或设置本地密码并撤销所有会话
-      description: 已有密码必须校验 currentPassword；纯第三方账号须在当前会话完成5分钟内的Linux.do重新授权核验。成功返回 data.changed=true 并清除会话 Cookie。
+      description: 已有密码必须校验 currentPassword；无密码账号须在当前会话通过已验证联系方式的验证码在5分钟内重新核验。成功返回 data.changed=true 并清除会话 Cookie。
       requestBody:
         required: true
         content:
@@ -1245,7 +1295,7 @@ paths:
     post:
       tags: [auth]
       summary: 向新邮箱发送专用验证码
-      description: 验证当前密码或当前会话最近的Linux.do核验；新地址未被占用且不同于旧地址。返回 ticket、expiresIn=600、retryAfter=60；票据绑定用户/会话/凭据，仅profile_email用途有效。发送失败显式报错。
+      description: 必须校验当前密码（重新核验标记不能替代；无密码账号须先设置密码）；新地址未被占用且不同于旧地址。返回 ticket、expiresIn=600、retryAfter=60；票据绑定用户/会话/凭据，仅profile_email用途有效。发送失败显式报错。
       requestBody:
         required: true
         content:
@@ -1273,7 +1323,7 @@ paths:
     post:
       tags: [auth]
       summary: 验证新邮箱并更新绑定
-      description: 原子校验邮箱唯一性、消费验证码、更新已验证邮箱并撤销全部会话；清除Cookie。返回changed=true及notificationStatus(sent/failed/not_needed)，failed仅表示已更新后的原邮箱通知失败。
+      description: 同样只认当前密码。原子校验邮箱唯一性、消费验证码、更新已验证邮箱并撤销全部会话；清除Cookie。返回changed=true及notificationStatus(sent/failed/not_needed)，failed仅表示已更新后的原邮箱通知失败。
       requestBody:
         required: true
         content:
@@ -1290,23 +1340,6 @@ paths:
           $ref: "#/components/responses/Envelope"
         "400":
           $ref: "#/components/responses/Error"
-        "401":
-          $ref: "#/components/responses/Error"
-        "403":
-          $ref: "#/components/responses/Error"
-        "429":
-          $ref: "#/components/responses/Error"
-  /auth/profile/linuxdo/start:
-    get:
-      tags: [auth]
-      summary: 发起当前账号Linux.do身份重新核验
-      description: OAuth state绑定当前账号和当前会话，回调只接受原绑定subject；不创建账号或新登录会话。授权成功返回/settings?section=profile&reauth=success，失败返回reauth=error。
-      responses:
-        "302":
-          description: 跳转到第三方授权页面
-          headers:
-            Location:
-              schema: { type: string, format: uri }
         "401":
           $ref: "#/components/responses/Error"
         "403":
@@ -1681,7 +1714,7 @@ components:
         displayName: {type: string}
         account: {type: string, description: 用户名或脱敏的尝试账号}
         event: {type: string, enum: [login, logout]}
-        method: {type: string, enum: [password, email, sms, linuxdo, verification, unknown]}
+        method: {type: string, enum: [password, email, sms, verification, unknown]}
         source: {type: string, enum: [login, registration, logout]}
         result: {type: string, enum: [success, failed]}
         ip: {type: string}

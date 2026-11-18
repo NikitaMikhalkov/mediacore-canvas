@@ -1,10 +1,9 @@
 import { type FormEvent, useEffect, useRef, useState, type ReactNode } from "react";
-import { App, Button, Checkbox, Divider, Input, Modal, Segmented } from "antd";
+import { App, Button, Checkbox, Input, Modal, Segmented } from "antd";
 import { ArrowLeft, ArrowRight, FileText, Info, LockKeyhole, Mail, TriangleAlert, UserRound } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 
-import { getAuthSession, getAuthSettings, linuxDOLoginURL, register } from "@/services/api/auth";
-import { LinuxDOIcon } from "./auth-scene";
+import { getAuthSession, getAuthSettings, register } from "@/services/api/auth";
 import { ApiError } from "@/services/api/request";
 import { VerificationFields } from "@/components/auth/verification-fields";
 import { emptyVerification, methodLabels, verificationMethods, type VerificationMethod } from "@/services/api/verification";
@@ -22,7 +21,7 @@ export default function RegisterPage() {
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [verification, setVerification] = useState({ ...emptyVerification });
-    const [method, setMethod] = useState<VerificationMethod>("email");
+    const [method, setMethod] = useState<VerificationMethod>("sms");
     const [displayName, setDisplayName] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -108,6 +107,7 @@ export default function RegisterPage() {
     const methods = settings ? verificationMethods(settings, "register") : [];
     const verificationUnavailable = Boolean(settings && !settings.firstUser && methods.length === 0);
     const disabled = !settings || registrationClosed || verificationUnavailable;
+    const passwordRequired = Boolean(settings?.firstUser || !((method !== "email" && settings?.smsLogin) || (method !== "sms" && settings?.emailLogin)));
 
     return (
         <form onSubmit={submit} className="space-y-4">
@@ -134,8 +134,8 @@ export default function RegisterPage() {
 
             <div hidden={stage !== "details"} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-                <AuthField label="用户名">
-                    <Input size="large" prefix={<UserRound className="auth-scene-icon size-4" />} value={username} onChange={(event) => setUsername(event.target.value)} placeholder="3-32 位字符" autoComplete="username" required disabled={disabled} />
+                <AuthField label={settings?.firstUser ? "用户名" : "用户名（可选）"}>
+                    <Input size="large" prefix={<UserRound className="auth-scene-icon size-4" />} value={username} onChange={(event) => setUsername(event.target.value)} placeholder="不填则自动生成" autoComplete="username" required={settings?.firstUser} disabled={disabled} />
                 </AuthField>
                 <AuthField label="显示名称">
                     <Input size="large" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="不填则使用用户名" disabled={disabled} />
@@ -162,11 +162,11 @@ export default function RegisterPage() {
 
             {stage === "password" ? <>
             <div className="auth-scene-notice rounded-lg border px-3 py-2.5 text-xs leading-5" data-tone="blue">
-                <p className="m-0 font-medium">为 {username} 设置登录密码</p>
+                <p className="m-0 font-medium">{settings?.firstUser ? `为 ${username} 设置登录密码` : passwordRequired ? "当前联系方式未开启验证码登录，请设置密码" : "可选设置登录密码"}</p>
                 <p className="m-0">{settings?.firstUser ? "提交后创建管理员账号。" : "提交时会核验验证码并创建账号，注册尚未完成。验证码过期请返回重新获取。"}</p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-                <AuthField label="密码">
+                <AuthField label={passwordRequired ? "密码" : "密码（可选）"}>
                     <Input.Password
                         size="large"
                         prefix={<LockKeyhole className="auth-scene-icon size-4" />}
@@ -175,7 +175,7 @@ export default function RegisterPage() {
                         placeholder="至少 8 位"
                         autoComplete="new-password"
                         autoFocus
-                        required
+                        required={passwordRequired}
                         disabled={disabled}
                     />
                 </AuthField>
@@ -187,7 +187,7 @@ export default function RegisterPage() {
                         onChange={(event) => setConfirmPassword(event.target.value)}
                         placeholder="再次输入密码"
                         autoComplete="new-password"
-                        required
+                        required={passwordRequired}
                         disabled={disabled}
                     />
                 </AuthField>
@@ -217,21 +217,11 @@ export default function RegisterPage() {
             ) : null}
 
             <Button type="primary" htmlType="submit" size="large" block loading={submitting} disabled={disabled || registerCountdown > 0 || !agreementAccepted} icon={<ArrowRight className="size-4" />} iconPlacement="end">
-                {registerCountdown > 0 ? `${registerCountdown} 秒后可重试` : stage === "details" ? "下一步：设置密码" : "设置密码并创建账号"}
+                {registerCountdown > 0 ? `${registerCountdown} 秒后可重试` : stage === "details" ? "下一步：设置密码" : "创建账号"}
             </Button>
             {stage === "password" ? <Button type="text" block disabled={submitting} icon={<ArrowLeft className="size-3.5" />} onClick={() => { setStage("details"); setPassword(""); setConfirmPassword(""); }}>
                 返回修改资料与验证码
             </Button> : null}
-            {stage === "details" && settings?.linuxdoEnabled && !settings.smsAndEmailRegistration ? (
-                <>
-                    <Divider plain className="auth-scene-divider">
-                        或
-                    </Divider>
-                    <Button size="large" block disabled={!agreementAccepted} icon={<LinuxDOIcon />} href={agreementAccepted ? linuxDOLoginURL(next, true) : undefined}>
-                        使用 Linux.do 注册 / 登录
-                    </Button>
-                </>
-            ) : null}
             <Modal
                 className="workspace-modal workspace-modal-compact auth-agreement-modal"
                 title={agreementTitle}

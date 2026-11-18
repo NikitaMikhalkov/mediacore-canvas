@@ -201,9 +201,9 @@ test("task-first settings reveal dependent configuration only after the primary 
     expect(emailSource).toContain('title="1. 是否发送账户安全邮件"');
     expect(emailSource).toContain('title="2. 配置 SMTP 连接与发件身份"');
 
-    expect(accessSource).toContain("{draftLinuxDOEnabled ? (");
     expect(accessSource).toContain('title="1. 是否允许创建新账号"');
-    expect(accessSource).toContain('title="2. 是否开放 Linux.do 登录"');
+    expect(accessSource).toContain('title="2. 服务协议名称与条款"');
+    expect(accessSource).not.toContain("Linux.do");
 
     expect(featureSource).toContain('title="1. 用户工作台入口"');
     expect(featureSource).toContain('title="2. 插件开放范围"');

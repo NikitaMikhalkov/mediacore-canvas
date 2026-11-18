@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { profileAvatarError, PROFILE_AVATAR_MAX_BYTES, profilePasswordError, profileReauthReady, profileSecondsRemaining } from "../src/pages/settings/profile-validation";
 import { settingsPath } from "../src/lib/settings-navigation";
-import { changeProfileEmail, changeProfilePassword, getUserProfile, profileLinuxDOReauthURL, requestProfileEmailCode, resetProfileAvatar, selectDefaultProfileAvatar, uploadProfileAvatar } from "../src/services/api/profile";
+import { changeProfileEmail, changeProfilePassword, getUserProfile, requestProfileEmailCode, resetProfileAvatar, selectDefaultProfileAvatar, uploadProfileAvatar } from "../src/services/api/profile";
 import { ApiError, apiClient } from "../src/services/api/request";
 
 describe("profile input and security expiry", () => {
@@ -79,8 +79,6 @@ describe("profile API request contract", () => {
             expect(requests.map((request) => request.url)).toEqual(["/auth/profile/password", "/auth/profile/email-code", "/auth/profile/email"]);
             expect(requests.every((request) => request.method === "post" && request.params === undefined)).toBe(true);
             expect(requests[2].data).toEqual({ ticket: "test-ticket", emailCode: "123456", currentPassword: "old-password" });
-            expect(profileLinuxDOReauthURL()).toEndWith("/auth/profile/linuxdo/start");
-            expect(profileLinuxDOReauthURL()).not.toContain("?");
         } finally {
             apiClient.request = original;
         }

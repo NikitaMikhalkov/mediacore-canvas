@@ -91,7 +91,7 @@ func TestGmailMailboxLegacyLookupsRemainExact(t *testing.T) {
 }
 
 func TestGmailMailboxVerificationEntryPoints(t *testing.T) {
-	for _, mode := range []string{"ticket", "oauth", "bind", "first-user"} {
+	for _, mode := range []string{"ticket", "bind", "first-user"} {
 		t.Run(mode, func(t *testing.T) {
 			db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 			if err != nil {
@@ -114,8 +114,6 @@ func TestGmailMailboxVerificationEntryPoints(t *testing.T) {
 			switch mode {
 			case "ticket":
 				err = r.CreateUserWithVerification(&user, v.ID)
-			case "oauth":
-				err = r.CreateOAuthUser(&user, &model.UserIdentity{ID: "identity", UserID: user.ID, Provider: "linuxdo", Subject: "subject"})
 			case "first-user":
 				err = r.CreateRegisteredUser(&user)
 			case "bind":

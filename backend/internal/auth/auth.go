@@ -12,6 +12,7 @@ import (
 	"time"
 	"yingce/backend/internal/kernel"
 	"yingce/backend/internal/repository"
+	"yingce/backend/internal/sms"
 
 	"yingce/backend/internal/model"
 
@@ -53,7 +54,6 @@ type PublicAuthSettings struct {
 	EmailBindingAvailable bool   `json:"emailBindingAvailable"`
 	FirstUser             bool   `json:"firstUser"`
 	RegistrationEnabled   bool   `json:"registrationEnabled"`
-	LinuxDOEnabled        bool   `json:"linuxdoEnabled"`
 	EmailEnabled          bool   `json:"emailEnabled"`
 	EmailCodeRequired     bool   `json:"emailCodeRequired"`
 	AgreementTitle        string `json:"agreementTitle,omitempty"`
@@ -68,10 +68,7 @@ type AuthSessionResult struct {
 
 type AuthUser struct {
 	model.User
-	AvatarURL        string `json:"avatarUrl,omitempty"`
-	IdentityProvider string `json:"identityProvider,omitempty"`
-	IdentityID       string `json:"identityId,omitempty"`
-	IdentityUsername string `json:"identityUsername,omitempty"`
+	AvatarURL string `json:"avatarUrl,omitempty"`
 }
 
 func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
@@ -82,7 +79,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 	if count == 0 {
 		// 首个管理员同样要看到服务协议，不能因为跳过注册校验就丢失协议字段。
 		agreementTitle, agreementContent := s.RegistrationAgreement()
-		return &PublicAuthSettings{FirstUser: true, RegistrationEnabled: true, LinuxDOEnabled: false, AgreementTitle: agreementTitle, AgreementContent: agreementContent}, nil
+		return &PublicAuthSettings{FirstUser: true, RegistrationEnabled: true, AgreementTitle: agreementTitle, AgreementContent: agreementContent}, nil
 	}
 	registrationEnabled, err := s.RegistrationEnabled()
 	if err != nil {
@@ -120,7 +117,6 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 		EmailBindingAvailable: emailEnabled,
 		FirstUser:             false,
 		RegistrationEnabled:   registrationEnabled,
-		LinuxDOEnabled:        s.LinuxDOEnabled(),
 		EmailEnabled:          emailEnabled,
 		EmailCodeRequired:     p.EmailRegistration || p.SMSAndEmailRegistration,
 		AgreementTitle:        agreementTitle,
@@ -134,13 +130,6 @@ func (s *Service) Register(req RegisterRequest) (*AuthSessionResult, error) {
 	}
 	username := NormalizeUsername(req.Username)
 	email := NormalizeEmail(req.Email)
-	displayName := NormalizeDisplayName(req.DisplayName, username)
-	if err := ValidateUsername(username); err != nil {
-		return nil, err
-	}
-	if err := ValidatePassword(req.Password); err != nil {
-		return nil, err
-	}
 	if email != "" {
 		if err := ValidateEmail(email); err != nil {
 			return nil, err
@@ -152,6 +141,31 @@ func (s *Service) Register(req RegisterRequest) (*AuthSessionResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	userID := kernel.NewID()
+	if username == "" && count > 0 {
+		username = userID
+		if strings.Trim(userID, "0123456789") == "" {
+			username = "u_" + userID[:min(len(userID), 30)]
+		}
+	}
+	if err := ValidateUsername(username); err != nil {
+		return nil, err
+	}
+	if req.Password == "" && count > 0 {
+		p, err := s.verificationPolicy()
+		if err != nil {
+			return nil, err
+		}
+		if !(email != "" && p.EmailLogin || strings.TrimSpace(req.Phone) != "" && p.SMSLogin) {
+			return nil, kernel.BadAuthRequest("当前联系方式未开启验证码登录，请设置密码")
+		}
+	}
+	if req.Password != "" || count == 0 {
+		if err := ValidatePassword(req.Password); err != nil {
+			return nil, err
+		}
+	}
+	displayName := NormalizeDisplayName(req.DisplayName, username)
 	var verifiedCode *model.EmailVerificationCode
 	var verification *model.AuthVerification
 	phone := ""
@@ -205,13 +219,16 @@ func (s *Service) Register(req RegisterRequest) (*AuthSessionResult, error) {
 			return nil, err
 		}
 	}
-	passwordHash, err := HashPassword(req.Password)
-	if err != nil {
-		return nil, err
+	passwordHash := ""
+	if req.Password != "" {
+		passwordHash, err = HashPassword(req.Password)
+		if err != nil {
+			return nil, err
+		}
 	}
 	now := time.Now()
 	user := model.User{
-		ID:           kernel.NewID(),
+		ID:           userID,
 		Username:     username,
 		Email:        email,
 		Phone:        phone,
@@ -257,10 +274,32 @@ func (s *Service) Register(req RegisterRequest) (*AuthSessionResult, error) {
 	return result, nil
 }
 
+func (s *Service) userByLoginAccount(account string) (*model.User, error) {
+	phone, phoneErr := sms.NormalizePhone(account)
+	var phoneUser *model.User
+	if phoneErr == nil {
+		var err error
+		phoneUser, err = s.repo.UserByPhone(phone)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			phoneUser = nil
+		} else if err != nil {
+			return nil, err
+		}
+		if phoneUser != nil && phoneUser.PhoneVerifiedAt != nil {
+			return phoneUser, nil
+		}
+	}
+	user, err := s.repo.UserByAccount(account)
+	if errors.Is(err, gorm.ErrRecordNotFound) && phoneUser != nil {
+		return phoneUser, nil
+	}
+	return user, err
+}
+
 // LoginRateLimitSubject uses the same account lookup as password authentication.
 func (s *Service) LoginRateLimitSubject(account string) (string, error) {
 	account = strings.TrimSpace(account)
-	user, err := s.repo.UserByAccount(account)
+	user, err := s.userByLoginAccount(account)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return "input:" + strings.ToLower(account), nil
 	}
@@ -279,19 +318,20 @@ func (s *Service) Login(req LoginRequest) (result *AuthSessionResult, err error)
 		}
 	}()
 	account := strings.TrimSpace(req.Username)
-	user, err := s.repo.UserByAccount(account)
+	user, err := s.userByLoginAccount(account)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			verifyPassword(req.Password, dummyPasswordHash)
 			return nil, kernel.Unauthorized("用户名、邮箱或密码不正确")
 		}
 		return nil, err
 	}
 	loginLogUser(event, user)
-	if user.Status != model.UserStatusActive {
-		return nil, kernel.Forbidden("该账号已被禁用")
-	}
 	if !verifyPassword(req.Password, user.PasswordHash) {
 		return nil, kernel.Unauthorized("用户名、邮箱或密码不正确")
+	}
+	if user.Status != model.UserStatusActive {
+		return nil, kernel.Forbidden("该账号已被禁用")
 	}
 	now := time.Now()
 	user.LastLoginAt = &now
@@ -353,25 +393,11 @@ func (s *Service) CurrentUser(cookieValue string) (*model.User, error) {
 	return user, nil
 }
 
-// 认证响应只补充当前用户自己的第三方公开身份，不把身份表或密钥字段暴露给其他列表接口。
 func (s *Service) PublicAuthUser(user *model.User) (AuthUser, error) {
 	result := AuthUser{User: *user}
 	if user.AvatarMode == "custom" {
 		result.AvatarURL = profileAvatarURL(user)
 	}
-	identity, err := s.repo.UserIdentityForUser(user.ID, "linuxdo")
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return result, nil
-	}
-	if err != nil {
-		return AuthUser{}, err
-	}
-	if user.AvatarMode == "" {
-		result.AvatarURL = identity.AvatarURL
-	}
-	result.IdentityProvider = identity.Provider
-	result.IdentityID = identity.Subject
-	result.IdentityUsername = identity.ProviderUsername
 	return result, nil
 }
 
@@ -405,8 +431,15 @@ func HashPassword(password string) (string, error) {
 	return string(hash), err
 }
 
+// Fixed bcrypt work for unknown accounts; this is not an account credential.
+const dummyPasswordHash = "$2a$10$HipdF8SDXNLcv5X2e5KQjuHll6Gg6A3.U9l.zNE.4EwRrphPONhku"
+
 func verifyPassword(password string, hash string) bool {
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	if err != nil && !errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+		_ = bcrypt.CompareHashAndPassword([]byte(dummyPasswordHash), []byte(password))
+	}
+	return err == nil
 }
 
 func HashToken(token string) string {
@@ -453,6 +486,9 @@ func NormalizeDisplayName(value string, fallback string) string {
 func ValidateUsername(value string) error {
 	if !usernamePattern.MatchString(value) {
 		return kernel.BadAuthRequest("用户名需为 3-32 位字母、数字、下划线或连字符")
+	}
+	if _, err := sms.NormalizePhone(value); err == nil {
+		return kernel.BadAuthRequest("用户名不能是手机号")
 	}
 	return nil
 }

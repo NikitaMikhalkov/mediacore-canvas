@@ -13,9 +13,6 @@ export type LocalUser = {
     avatarUrl?: string;
     avatarMode?: "custom" | "default" | "";
     avatarPreset?: string;
-    identityProvider?: string;
-    identityId?: string;
-    identityUsername?: string;
     role: "admin" | "user";
     status: "active" | "disabled";
     lastLoginAt?: string;

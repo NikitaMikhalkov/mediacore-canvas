@@ -1,13 +1,12 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"yingce/backend/internal/model"
 
@@ -26,6 +25,236 @@ func newRegistrationTestService(t *testing.T) (*Service, *gorm.DB) {
 	}
 	t.Cleanup(func() { _ = sqlDB.Close() })
 	return svc, db
+}
+
+func TestVerificationPolicyDefaultsAndSavedSettings(t *testing.T) {
+	svc, db := newRegistrationTestService(t)
+	p, err := svc.verificationPolicy()
+	if err != nil || !p.SMSLogin || !p.SMSRegistration || !p.EmailRegistration {
+		t.Fatalf("unexpected default policy: %+v, %v", p, err)
+	}
+	if err := db.Create(&model.SystemSetting{Key: authPolicyKey, ValueJSON: `{"emailLogin":true}`}).Error; err != nil {
+		t.Fatal(err)
+	}
+	p, err = svc.verificationPolicy()
+	if err != nil || !p.EmailLogin || p.SMSLogin || p.SMSRegistration {
+		t.Fatalf("saved policy changed: %+v, %v", p, err)
+	}
+	if _, err := svc.UpdateVerificationPolicy(&model.User{ID: "admin"}, VerificationPolicy{SMSLogin: true}); err == nil {
+		t.Fatal("unconfigured SMS was accepted")
+	}
+}
+
+type registrationTestHost struct{ nopHost }
+
+func (registrationTestHost) SettingsEncryptionKey() ([]byte, error) {
+	return []byte("test-only-encryption-key-32-bytes"), nil
+}
+
+type registrationTestSMS struct{ code string }
+
+func (*registrationTestSMS) Available(string) (bool, error) { return true, nil }
+func (s *registrationTestSMS) SendCode(_ context.Context, _, _, code string) error {
+	s.code = code
+	return nil
+}
+
+func TestRegisterVerifiedContactWithoutUsernameOrPassword(t *testing.T) {
+	for _, method := range []string{"sms", "email"} {
+		t.Run(method, func(t *testing.T) {
+			svc, db := newRegistrationTestService(t)
+			if err := db.AutoMigrate(&model.AuthVerification{}, &model.NotificationQuota{}); err != nil {
+				t.Fatal(err)
+			}
+			svc.host = registrationTestHost{}
+			sms := &registrationTestSMS{}
+			svc.SetSMSDelivery(sms)
+			if err := db.Create(&model.User{ID: "admin", Username: "admin", Role: model.UserRoleAdmin, Status: model.UserStatusActive}).Error; err != nil {
+				t.Fatal(err)
+			}
+			if err := db.Create(&model.SystemSetting{Key: registrationSettingKey, ValueJSON: `{"enabled":true}`}).Error; err != nil {
+				t.Fatal(err)
+			}
+			if err := db.Create(&model.SystemSetting{Key: authPolicyKey, ValueJSON: `{"smsLogin":true,"emailLogin":true,"smsRegistration":true,"emailRegistration":true}`}).Error; err != nil {
+				t.Fatal(err)
+			}
+			var emailCode string
+			svc.SetMailSender(func(_ EmailSettingValue, _, _, body string) error {
+				_, rest, _ := strings.Cut(body, "验证码是：")
+				emailCode, _, _ = strings.Cut(rest, "\n")
+				return nil
+			})
+			req := VerificationRequest{Purpose: "register", Method: method}
+			if method == "sms" {
+				req.Phone = "13800138000"
+			} else {
+				req.Email = "member@example.com"
+			}
+			ticket, err := svc.StartVerification(context.Background(), nil, req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := svc.Register(RegisterRequest{Phone: req.Phone, Email: req.Email, Ticket: ticket.Ticket, SMSCode: sms.code, EmailCode: emailCode, AcceptedTerms: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.Session == "" || result.User.Username == "" || result.User.PasswordHash != "" {
+				t.Fatalf("unexpected registration: %+v", result.User)
+			}
+			if method == "sms" && result.User.PhoneVerifiedAt == nil {
+				t.Fatal("phone not marked verified")
+			}
+			if method == "email" && result.User.EmailVerifiedAt == nil {
+				t.Fatal("email not marked verified")
+			}
+		})
+	}
+}
+
+func TestRegistrationWithoutLoginMethodRequiresPassword(t *testing.T) {
+	for _, method := range []string{"sms", "email"} {
+		t.Run(method, func(t *testing.T) {
+			svc, db := newRegistrationTestService(t)
+			if err := db.AutoMigrate(&model.AuthVerification{}, &model.NotificationQuota{}); err != nil {
+				t.Fatal(err)
+			}
+			svc.host = registrationTestHost{}
+			delivery := &registrationTestSMS{}
+			svc.SetSMSDelivery(delivery)
+			if err := db.Create(&model.User{ID: "admin", Username: "admin", Status: model.UserStatusActive}).Error; err != nil {
+				t.Fatal(err)
+			}
+			for _, setting := range []model.SystemSetting{{Key: registrationSettingKey, ValueJSON: `{"enabled":true}`}, {Key: authPolicyKey, ValueJSON: `{"smsRegistration":true,"emailRegistration":true}`}} {
+				if err := db.Create(&setting).Error; err != nil {
+					t.Fatal(err)
+				}
+			}
+			var emailCode string
+			svc.SetMailSender(func(_ EmailSettingValue, _, _, body string) error {
+				_, rest, _ := strings.Cut(body, "验证码是：")
+				emailCode, _, _ = strings.Cut(rest, "\n")
+				return nil
+			})
+			request := VerificationRequest{Purpose: "register", Method: method}
+			if method == "sms" {
+				request.Phone = "13800138000"
+			} else {
+				request.Email = "member@example.com"
+			}
+			ticket, err := svc.StartVerification(context.Background(), nil, request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			reg := RegisterRequest{Phone: request.Phone, Email: request.Email, Ticket: ticket.Ticket, SMSCode: delivery.code, EmailCode: emailCode, AcceptedTerms: true}
+			if _, err := svc.Register(reg); err == nil {
+				t.Fatal("passwordless registration accepted without a login method")
+			}
+			reg.Password = "password123"
+			if _, err := svc.Register(reg); err != nil {
+				t.Fatalf("password registration rejected: %v", err)
+			}
+		})
+	}
+}
+
+func TestVerificationLoginUnknownPhoneReturnsSameReceipt(t *testing.T) {
+	svc, db := newRegistrationTestService(t)
+	if err := db.AutoMigrate(&model.AuthVerification{}, &model.NotificationQuota{}); err != nil {
+		t.Fatal(err)
+	}
+	svc.host = registrationTestHost{}
+	delivery := &registrationTestSMS{}
+	svc.SetSMSDelivery(delivery)
+	now := time.Now()
+	if err := db.Create(&model.User{ID: "member", Username: "member", Phone: "+8613800138000", PhoneVerifiedAt: &now, Status: model.UserStatusActive}).Error; err != nil {
+		t.Fatal(err)
+	}
+	known, err := svc.StartVerification(context.Background(), nil, VerificationRequest{Purpose: "login", Method: "sms", Phone: "13800138000"})
+	if err != nil || delivery.code == "" {
+		t.Fatalf("known phone: %v", err)
+	}
+	delivery.code = ""
+	unknown, err := svc.StartVerification(context.Background(), nil, VerificationRequest{Purpose: "login", Method: "sms", Phone: "13900139000"})
+	if err != nil || unknown.Ticket == "" || known.ExpiresIn != unknown.ExpiresIn || known.RetryAfter != unknown.RetryAfter || delivery.code != "" {
+		t.Fatalf("unknown phone receipt differs: %+v, %v", unknown, err)
+	}
+	if _, err := svc.LoginVerification(VerificationConfirm{Ticket: unknown.Ticket, SMSCode: "123456"}); err == nil {
+		t.Fatal("unknown phone logged in")
+	}
+}
+
+func TestFirstAdministratorRequiresPassword(t *testing.T) {
+	svc, db := newRegistrationTestService(t)
+	if _, err := svc.Register(RegisterRequest{Username: "admin", AcceptedTerms: true}); err == nil {
+		t.Fatal("first administrator created without password or verification")
+	}
+	var count int64
+	if err := db.Model(&model.User{}).Count(&count).Error; err != nil || count != 0 {
+		t.Fatalf("unexpected user count %d: %v", count, err)
+	}
+}
+
+func TestPhoneLoginDoesNotSelectCollidingUsername(t *testing.T) {
+	svc, db := newRegistrationTestService(t)
+	hash, err := HashPassword("password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	for _, user := range []model.User{
+		{ID: "owner", Username: "owner", Phone: "+8613800138000", PhoneVerifiedAt: &now, PasswordHash: hash, Status: model.UserStatusActive},
+		{ID: "other", Username: "13800138000", PasswordHash: hash, Status: model.UserStatusActive},
+	} {
+		if err := db.Create(&user).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := svc.Login(LoginRequest{Username: "13800138000", Password: "password123"})
+	if err != nil || result.User.ID != "owner" {
+		t.Fatalf("phone login selected wrong account: result=%+v err=%v", result, err)
+	}
+	if subject, err := svc.LoginRateLimitSubject("13800138000"); err != nil || subject != "user:owner" {
+		t.Fatalf("rate limit subject: %q %v", subject, err)
+	}
+	if err := ValidateUsername("13800138000"); err == nil {
+		t.Fatal("phone-shaped username accepted")
+	}
+}
+
+func TestDisabledPhoneDoesNotRevealStatusWithoutPassword(t *testing.T) {
+	svc, db := newRegistrationTestService(t)
+	hash, err := HashPassword("password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	if err := db.Create(&model.User{ID: "disabled", Username: "disabled", Phone: "+8613800138000", PhoneVerifiedAt: &now, PasswordHash: hash, Status: model.UserStatusDisabled}).Error; err != nil {
+		t.Fatal(err)
+	}
+	_, disabledErr := svc.Login(LoginRequest{Username: "13800138000", Password: "wrong-password"})
+	_, missingErr := svc.Login(LoginRequest{Username: "13900139000", Password: "wrong-password"})
+	var disabled, missing *AuthError
+	if !errors.As(disabledErr, &disabled) || !errors.As(missingErr, &missing) || disabled.Status != 401 || disabled.Status != missing.Status || disabled.Message != missing.Message {
+		t.Fatalf("login failures differ: disabled=%v missing=%v", disabledErr, missingErr)
+	}
+	if _, err := svc.Login(LoginRequest{Username: "13800138000", Password: "password123"}); err == nil {
+		t.Fatal("disabled account logged in")
+	}
+}
+
+func TestPasswordLoginSupportsPhone(t *testing.T) {
+	svc, db := newRegistrationTestService(t)
+	hash, err := HashPassword("password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&model.User{ID: "member", Username: "member", Phone: "+8613800138000", PasswordHash: hash, Status: model.UserStatusActive}).Error; err != nil {
+		t.Fatal(err)
+	}
+	result, err := svc.Login(LoginRequest{Username: "13800138000", Password: "password123"})
+	if err != nil || result.Session == "" {
+		t.Fatalf("phone password login: %v", err)
+	}
 }
 
 func TestRegisterRequiresAcceptedTermsBeforeWriting(t *testing.T) {
@@ -85,118 +314,5 @@ func TestRegisterAcceptedTermsCreatesEmailUser(t *testing.T) {
 	}
 	if result.User.Role != model.UserRoleUser || result.Session == "" {
 		t.Fatalf("Register() result = %#v", result)
-	}
-}
-
-func TestLinuxDORegistrationAgreement(t *testing.T) {
-	t.Setenv("CANVAS_ALLOWED_PRIVATE_UPSTREAM_HOSTS", "127.0.0.1")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		var payload any
-		switch r.URL.Path {
-		case "/token":
-			payload = map[string]string{"access_token": "test-access-token"}
-		case "/profile":
-			payload = map[string]string{"id": "42", "username": "linux-user", "name": "Linux User"}
-		default:
-			http.NotFound(w, r)
-			return
-		}
-		if err := json.NewEncoder(w).Encode(payload); err != nil {
-			t.Error(err)
-		}
-	}))
-	defer server.Close()
-	for _, tc := range []struct {
-		name         string
-		accepted     bool
-		existing     bool
-		registration bool
-		wantError    string
-	}{
-		{name: "new user without agreement", registration: true, wantError: "请先同意Mediacore服务协议"},
-		{name: "new user with agreement", accepted: true, registration: true},
-		{name: "existing user without agreement", existing: true, registration: true},
-		{name: "existing user with registration closed", existing: true},
-		{name: "agreement does not bypass registration closure", accepted: true, wantError: "管理员未开放新用户注册"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			svc, db := newRegistrationTestService(t)
-			if err := db.Create(&model.User{ID: "admin", Username: "admin", Role: model.UserRoleAdmin, Status: model.UserStatusActive}).Error; err != nil {
-				t.Fatal(err)
-			}
-			setting, err := json.Marshal(linuxDOSettingValue{Enabled: true, ClientID: "client", AuthorizationURL: server.URL + "/authorize", TokenURL: server.URL + "/token", UserInfoURL: server.URL + "/profile", RedirectURL: "https://example.com/callback"})
-			if err != nil {
-				t.Fatal(err)
-			}
-			for _, value := range []model.SystemSetting{
-				{Key: linuxDOSettingKey, ValueJSON: string(setting)},
-				{Key: registrationSettingKey, ValueJSON: `{"enabled":` + strconv.FormatBool(tc.registration) + `}`},
-			} {
-				if err := db.Create(&value).Error; err != nil {
-					t.Fatal(err)
-				}
-			}
-			if tc.existing {
-				if err := svc.repo.CreateOAuthUser(
-					&model.User{ID: "existing-user", Username: "linux-user", Role: model.UserRoleUser, Status: model.UserStatusActive},
-					&model.UserIdentity{ID: "identity", UserID: "existing-user", Provider: "linuxdo", Subject: "42"},
-				); err != nil {
-					t.Fatal(err)
-				}
-			}
-			target, err := svc.BeginLinuxDOLogin("/create", tc.accepted)
-			if err != nil {
-				t.Fatal(err)
-			}
-			parsed, err := url.Parse(target)
-			if err != nil {
-				t.Fatal(err)
-			}
-			stateValue := parsed.Query().Get("state")
-			var saved model.OAuthState
-			if err := db.Where("state_hash = ?", HashToken(stateValue)).First(&saved).Error; err != nil || saved.AcceptedTerms != tc.accepted {
-				t.Fatalf("saved consent = %v, err=%v", saved.AcceptedTerms, err)
-			}
-			result, err := svc.CompleteLinuxDOLogin(stateValue, "test-code", "")
-			var event model.LoginLog
-			if logErr := db.First(&event).Error; logErr != nil {
-				t.Fatal(logErr)
-			}
-			if event.Method != "linuxdo" || event.Event != "login" {
-				t.Fatalf("OAuth log: %#v", event)
-			}
-			if tc.wantError == "" && event.Result != "success" {
-				t.Fatalf("OAuth success log: %#v", event)
-			}
-			if tc.wantError != "" && event.Result != "failed" {
-				t.Fatalf("OAuth failure log: %#v", event)
-			}
-			if !tc.existing && tc.wantError == "" && event.Source != "registration" {
-				t.Fatalf("OAuth registration source: %q", event.Source)
-			}
-			wantUsers, wantRecords := int64(2), int64(1)
-			if tc.wantError != "" {
-				var authErr *AuthError
-				if !errors.As(err, &authErr) || authErr.Message != tc.wantError {
-					t.Fatalf("CompleteLinuxDOLogin() error = %v", err)
-				}
-				wantUsers, wantRecords = 1, 0
-			} else if err != nil || result == nil || result.Session.Session == "" || result.Next != "/create" {
-				t.Fatalf("CompleteLinuxDOLogin() result=%#v err=%v", result, err)
-			}
-			if count, err := svc.repo.UserCount(); err != nil || count != wantUsers {
-				t.Fatalf("user count=%d want=%d err=%v", count, wantUsers, err)
-			}
-			for _, entity := range []any{&model.UserIdentity{}, &model.CreditAccount{}, &model.AuthSession{}} {
-				var count int64
-				if err := db.Model(entity).Count(&count).Error; err != nil || count != wantRecords {
-					t.Fatalf("%T count=%d want=%d err=%v", entity, count, wantRecords, err)
-				}
-			}
-			if _, err := svc.CompleteLinuxDOLogin(stateValue, "test-code", ""); err == nil {
-				t.Fatal("consumed OAuth state was accepted twice")
-			}
-		})
 	}
 }

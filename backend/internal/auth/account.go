@@ -17,7 +17,6 @@ type UserProfile struct {
 	User                 AuthUser   `json:"user"`
 	HasPassword          bool       `json:"hasPassword"`
 	EmailEnabled         bool       `json:"emailEnabled"`
-	LinuxDOEnabled       bool       `json:"linuxdoEnabled"`
 	ReauthenticatedUntil *time.Time `json:"reauthenticatedUntil,omitempty"`
 }
 type ProfilePasswordRequest struct {
@@ -66,16 +65,27 @@ func (s *Service) profileSession(actor *model.User, cookie string) (*model.User,
 	return user, session, nil
 }
 
-func authorizeProfileChange(user *model.User, session *model.AuthSession, password string) error {
+// Set-password: the current password, or for a passwordless account the fresh
+// OTP reauthentication marker of this session.
+func (s *Service) authorizeProfileChange(user *model.User, session *model.AuthSession, password string) error {
 	if user.PasswordHash != "" {
-		if !verifyPassword(password, user.PasswordHash) {
-			return kernel.Unauthorized("当前密码不正确")
-		}
-		return nil
+		return requireCurrentPassword(user, password)
 	}
 	now := time.Now()
 	if session.ReauthenticatedAt == nil || session.ReauthenticatedAt.After(now) || !session.ReauthenticatedAt.Add(repository.ProfileReauthenticationTTL).After(now) {
-		return kernel.Unauthorized("请先通过 Linux.do 重新验证身份")
+		return kernel.Unauthorized("请先重新验证身份")
+	}
+	return nil
+}
+
+// Email change accepts the current password only; a reauthentication marker
+// never authorizes it, so a passwordless account must set a password first.
+func requireCurrentPassword(user *model.User, password string) error {
+	if user.PasswordHash == "" {
+		return kernel.Unauthorized("请先设置密码")
+	}
+	if !verifyPassword(password, user.PasswordHash) {
+		return kernel.Unauthorized("当前密码不正确")
 	}
 	return nil
 }
@@ -103,11 +113,7 @@ func (s *Service) UserProfile(actor *model.User, cookie string) (*UserProfile, e
 	if err != nil {
 		return nil, err
 	}
-	_, linuxdo, err := s.readLinuxDOSetting()
-	if err != nil {
-		return nil, err
-	}
-	result := &UserProfile{User: public, HasPassword: user.PasswordHash != "", EmailEnabled: emailEnabled, LinuxDOEnabled: linuxdo.Enabled}
+	result := &UserProfile{User: public, HasPassword: user.PasswordHash != "", EmailEnabled: emailEnabled}
 	now := time.Now()
 	if session.ReauthenticatedAt != nil && !session.ReauthenticatedAt.After(now) {
 		until := session.ReauthenticatedAt.Add(repository.ProfileReauthenticationTTL)
@@ -116,6 +122,44 @@ func (s *Service) UserProfile(actor *model.User, cookie string) (*UserProfile, e
 		}
 	}
 	return result, nil
+}
+
+func (s *Service) StartProfileReauthentication(ctx context.Context, actor *model.User, cookie, method string) (*VerificationTicket, error) {
+	user, session, err := s.profileSession(actor, cookie)
+	if err != nil {
+		return nil, err
+	}
+	req := VerificationRequest{Purpose: "profile_reauth", Method: method}
+	switch method {
+	case "sms":
+		if user.Phone == "" || user.PhoneVerifiedAt == nil {
+			return nil, invalidVerification()
+		}
+		req.Phone = user.Phone
+	case "email":
+		if user.Email == "" || user.EmailVerifiedAt == nil {
+			return nil, invalidVerification()
+		}
+		req.Email = user.Email
+	default:
+		return nil, invalidVerification()
+	}
+	return s.startVerification(ctx, user, session, req)
+}
+
+func (s *Service) ConfirmProfileReauthentication(actor *model.User, cookie string, req VerificationConfirm) error {
+	user, session, err := s.profileSession(actor, cookie)
+	if err != nil {
+		return err
+	}
+	v, err := s.verifyTicket("profile_reauth", req)
+	if err != nil {
+		return err
+	}
+	if v.UserID != user.ID || v.SessionID != session.ID {
+		return invalidVerification()
+	}
+	return profileWriteError(s.repo.ReauthenticateProfileOTP(user, session, v))
 }
 
 func (s *Service) ChangeProfilePassword(actor *model.User, cookie string, req ProfilePasswordRequest) error {
@@ -129,7 +173,7 @@ func (s *Service) ChangeProfilePassword(actor *model.User, cookie string, req Pr
 	if err != nil {
 		return err
 	}
-	if err := authorizeProfileChange(user, session, req.CurrentPassword); err != nil {
+	if err := s.authorizeProfileChange(user, session, req.CurrentPassword); err != nil {
 		return err
 	}
 	hash, err := HashPassword(req.NewPassword)
@@ -155,7 +199,7 @@ func (s *Service) SendProfileEmailCode(ctx context.Context, actor *model.User, c
 	if err != nil {
 		return nil, err
 	}
-	if err := authorizeProfileChange(user, session, req.CurrentPassword); err != nil {
+	if err := requireCurrentPassword(user, req.CurrentPassword); err != nil {
 		return nil, err
 	}
 	setting, err := s.profileEmailSetting()
@@ -208,7 +252,7 @@ func (s *Service) ChangeProfileEmail(actor *model.User, cookie string, req Profi
 	if err != nil {
 		return nil, err
 	}
-	if err := authorizeProfileChange(user, session, req.CurrentPassword); err != nil {
+	if err := requireCurrentPassword(user, req.CurrentPassword); err != nil {
 		return nil, err
 	}
 	setting, err := s.profileEmailSetting()

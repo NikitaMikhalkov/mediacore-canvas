@@ -1,18 +1,9 @@
 package auth
 
 import (
-	"bufio"
-	"context"
-	"encoding/json"
-	"fmt"
-	"io"
-	"net"
-	"net/http"
 	"testing"
-	"time"
 
 	"yingce/backend/internal/model"
-	"yingce/backend/internal/outbound"
 
 	"gorm.io/gorm"
 )
@@ -76,53 +67,5 @@ func TestPasswordLoginPreservesConcurrentDisable(t *testing.T) {
 	}
 	fired := disableBeforeLoginWrite(t, db, "member")
 	_, err = svc.Login(LoginRequest{Username: "member", Password: "password"})
-	assertLoginPreservesDisable(t, db, fired, err)
-}
-
-func TestLinuxDOLoginPreservesConcurrentDisable(t *testing.T) {
-	t.Setenv("CANVAS_ALLOWED_PRIVATE_UPSTREAM_HOSTS", "127.0.0.1")
-	// Exercise the OAuth HTTP path over an in-memory connection, without sockets.
-	transport := outbound.OutboundHTTPClient(time.Second).Transport.(*http.Transport)
-	transport.CloseIdleConnections()
-	previousDial := transport.DialContext
-	transport.DialContext = func(context.Context, string, string) (net.Conn, error) {
-		client, server := net.Pipe()
-		go func() {
-			defer server.Close()
-			req, err := http.ReadRequest(bufio.NewReader(server))
-			if err != nil {
-				t.Error(err)
-				return
-			}
-			defer req.Body.Close()
-			if _, err := io.Copy(io.Discard, req.Body); err != nil {
-				t.Error(err)
-				return
-			}
-			body := `{"id":"42","username":"member"}`
-			if req.URL.Path == "/token" {
-				body = `{"access_token":"test-token"}`
-			}
-			_, _ = fmt.Fprintf(server, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s", len(body), body)
-		}()
-		return client, nil
-	}
-	t.Cleanup(func() { transport.CloseIdleConnections(); transport.DialContext = previousDial })
-	svc, db := newRegistrationTestService(t)
-	if err := svc.repo.CreateOAuthUser(&model.User{ID: "member", Username: "member", DisplayName: "Before", Role: model.UserRoleUser, Status: model.UserStatusActive}, &model.UserIdentity{ID: "identity", UserID: "member", Provider: "linuxdo", Subject: "42"}); err != nil {
-		t.Fatal(err)
-	}
-	setting, err := json.Marshal(linuxDOSettingValue{Enabled: true, ClientID: "client", TokenURL: "http://127.0.0.1/token", UserInfoURL: "http://127.0.0.1/profile"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Create(&model.SystemSetting{Key: linuxDOSettingKey, ValueJSON: string(setting)}).Error; err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Create(&model.OAuthState{ID: "state", Provider: "linuxdo", StateHash: HashToken("state-value"), ExpiresAt: time.Now().Add(time.Hour)}).Error; err != nil {
-		t.Fatal(err)
-	}
-	fired := disableBeforeLoginWrite(t, db, "member")
-	_, err = svc.CompleteLinuxDOLogin("state-value", "code", "")
 	assertLoginPreservesDisable(t, db, fired, err)
 }

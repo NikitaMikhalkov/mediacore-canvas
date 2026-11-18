@@ -5,7 +5,6 @@ import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 
 import { AppChangelogButton } from "@/components/layout/app-changelog-modal";
-import { IdentityProviderBadge } from "@/components/layout/identity-provider-badge";
 import { UserAvatar } from "@/components/layout/user-avatar";
 import { SystemAnnouncementCenter } from "@/components/layout/system-announcement-center";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
@@ -72,7 +71,7 @@ export function WorkspaceSidebarFooter({ expandedClassName, collapsedClassName, 
                             <div className="flex items-center gap-3 border-b border-border/65 px-1 pb-3">
                                 <SidebarUserAvatar user={user} className="size-8" />
                                 <div className="min-w-0 flex-1">
-                                    <div className="flex min-w-0 items-center gap-1.5"><span className="truncate text-sm font-medium">{user.displayName || user.username}</span><IdentityProviderBadge user={user} /></div>
+                                    <div className="flex min-w-0 items-center gap-1.5"><span className="truncate text-sm font-medium">{user.displayName || user.username}</span></div>
                                     {creditsEnabled ? <div className="mt-0.5 truncate text-[var(--fs-label)] tabular-nums text-foreground/45">可用 {balance} 积分</div> : null}
                                 </div>
                             </div>
@@ -122,7 +121,6 @@ function SidebarUserAvatar({ user, className }: { user: LocalUser; className: st
     return (
         <span className={`relative grid shrink-0 place-items-center ${className}`}>
             <UserAvatar user={user} className="size-full rounded-md bg-transparent text-foreground/55" iconClassName="size-6 app-workspace-account-icon" />
-            <IdentityProviderBadge user={user} compact className="absolute -bottom-1 -right-1" />
         </span>
     );
 }

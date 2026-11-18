@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -59,6 +60,10 @@ func (r *Repository) CreateAuthSessionForUser(expected *model.User, session *mod
 	})
 }
 
+func profileReauthFresh(at *time.Time, now time.Time) bool {
+	return at != nil && !at.After(now) && at.Add(ProfileReauthenticationTTL).After(now)
+}
+
 func profileAuthorization(tx *gorm.DB, expected *model.User, session *model.AuthSession, now time.Time, requireReauth bool) error {
 	var current model.User
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&current, "id = ?", expected.ID).Error; err != nil {
@@ -80,7 +85,7 @@ func profileAuthorization(tx *gorm.DB, expected *model.User, session *model.Auth
 	if stored.TokenHash != session.TokenHash || !stored.ExpiresAt.After(now) {
 		return ErrProfileAuthorization
 	}
-	if requireReauth && (stored.ReauthenticatedAt == nil || stored.ReauthenticatedAt.After(now) || !stored.ReauthenticatedAt.Add(ProfileReauthenticationTTL).After(now)) {
+	if requireReauth && !profileReauthFresh(stored.ReauthenticatedAt, now) {
 		return ErrProfileAuthorization
 	}
 	return nil
@@ -110,7 +115,11 @@ func (r *Repository) ChangeProfileEmail(expected *model.User, session *model.Aut
 		if err := lockRegistrationEmail(tx, v.Email); err != nil {
 			return err
 		}
-		if err := profileAuthorization(tx, expected, session, now, expected.PasswordHash == ""); err != nil {
+		// Email change is password-only: a passwordless account has no authorization here.
+		if expected.PasswordHash == "" {
+			return ErrProfileAuthorization
+		}
+		if err := profileAuthorization(tx, expected, session, now, false); err != nil {
 			return err
 		}
 		now = time.Now()
@@ -135,22 +144,32 @@ func (r *Repository) ChangeProfileEmail(expected *model.User, session *model.Aut
 	})
 }
 
-func (r *Repository) ReauthenticateLinuxDOSession(expected *model.User, session *model.AuthSession, subject string, now time.Time) error {
+func (r *Repository) ReauthenticateProfileOTP(expected *model.User, session *model.AuthSession, v *model.AuthVerification) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		if err := lockProfileUser(tx, expected.ID); err != nil {
 			return err
 		}
-		if err := profileAuthorization(tx, expected, session, now, false); err != nil {
+		if err := profileAuthorization(tx, expected, session, time.Now(), false); err != nil {
 			return err
 		}
-		var count int64
-		if err := tx.Model(&model.UserIdentity{}).Where("provider = ? AND subject = ? AND user_id = ?", "linuxdo", subject, expected.ID).Count(&count).Error; err != nil {
+		var current model.User
+		if err := tx.First(&current, "id = ?", expected.ID).Error; err != nil {
 			return err
 		}
-		if count != 1 {
-			return ErrProfileAuthorization
+		validContact := v.Method == "sms" && v.Phone != "" && v.Email == "" && current.Phone == v.Phone && current.PhoneVerifiedAt != nil && !current.PhoneVerifiedAt.After(v.CreatedAt) ||
+			v.Method == "email" && v.Email != "" && v.Phone == "" && strings.ToLower(strings.TrimSpace(current.Email)) == v.Email && current.EmailVerifiedAt != nil && !current.EmailVerifiedAt.After(v.CreatedAt)
+		if !validContact || v.UserID != current.ID || v.SessionID != session.ID || v.CredentialHash != ProfileCredentialHash(current.PasswordHash) {
+			return ErrVerificationInvalid
 		}
-		result := tx.Model(&model.AuthSession{}).Where("id = ? AND user_id = ? AND token_hash = ?", session.ID, expected.ID, session.TokenHash).Updates(map[string]any{"reauthenticated_at": now, "updated_at": now})
+		now := time.Now()
+		result := tx.Model(&model.AuthVerification{}).Where("id = ? AND purpose = ? AND user_id = ? AND session_id = ? AND method = ? AND email = ? AND phone = ? AND credential_hash = ? AND token_hash = ? AND ready = ? AND used_at IS NULL AND expires_at > ? AND attempts > 0 AND attempts <= 5", v.ID, "profile_reauth", current.ID, session.ID, v.Method, v.Email, v.Phone, v.CredentialHash, v.TokenHash, true, now).Update("used_at", now)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return ErrVerificationInvalid
+		}
+		result = tx.Model(&model.AuthSession{}).Where("id = ? AND user_id = ? AND token_hash = ?", session.ID, current.ID, session.TokenHash).Updates(map[string]any{"reauthenticated_at": now, "updated_at": now})
 		if result.Error != nil {
 			return result.Error
 		}
@@ -159,16 +178,4 @@ func (r *Repository) ReauthenticateLinuxDOSession(expected *model.User, session 
 		}
 		return nil
 	})
-}
-
-func (r *Repository) LinuxDOReauthenticationState(stateHash string) (bool, error) {
-	var state model.OAuthState
-	err := r.db.First(&state, "provider = ? AND state_hash = ?", "linuxdo", stateHash).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return state.ReauthUserID != "" && state.ReauthSessionID != "", nil
 }
