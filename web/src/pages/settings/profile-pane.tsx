@@ -43,12 +43,17 @@ function ProfileOTPReauth({ user, onVerified }: { user: LocalUser; onVerified: (
     const generation = useRef(0);
     useEffect(() => {
         generation.current += 1;
-        setTicket(null); setCode(""); setBusy(false); setRetryAt(0);
+        setTicket(null);
+        setCode("");
+        setBusy(false);
+        setRetryAt(0);
     }, [user.id, user.phone, user.email, user.phoneVerifiedAt, user.emailVerifiedAt]);
     const send = async (method: "sms" | "email") => {
         if (busy || retryAt > Date.now()) return;
         const started = generation.current;
-        setBusy(true); setTicket(null); setCode("");
+        setBusy(true);
+        setTicket(null);
+        setCode("");
         try {
             const result = await requestProfileReauthCode(method);
             if (started !== generation.current) return;
@@ -61,7 +66,9 @@ function ProfileOTPReauth({ user, onVerified }: { user: LocalUser; onVerified: (
             if (started !== generation.current) return;
             if (error instanceof ApiError && error.retryAfterMs) setRetryAt(Date.now() + error.retryAfterMs);
             message.error(errorMessage(error, "发送验证码失败"));
-        } finally { if (started === generation.current) setBusy(false); }
+        } finally {
+            if (started === generation.current) setBusy(false);
+        }
     };
     const confirm = async () => {
         if (!ticket || ticket.expiresAt <= Date.now() || !/^\d{6}$/.test(code) || busy) return;
@@ -70,24 +77,47 @@ function ProfileOTPReauth({ user, onVerified }: { user: LocalUser; onVerified: (
         try {
             await confirmProfileReauth({ ticket: ticket.value, ...(ticket.method === "sms" ? { smsCode: code } : { emailCode: code }) });
             if (started !== generation.current) return;
-            setTicket(null); setCode(""); onVerified(); message.success("身份验证成功");
+            setTicket(null);
+            setCode("");
+            onVerified();
+            message.success("身份验证成功");
         } catch (error) {
             if (started !== generation.current) return;
-            setTicket(null); setCode(""); message.error(errorMessage(error, "验证失败，请重新获取验证码"));
-        } finally { if (started === generation.current) setBusy(false); }
+            setTicket(null);
+            setCode("");
+            message.error(errorMessage(error, "验证失败，请重新获取验证码"));
+        } finally {
+            if (started === generation.current) setBusy(false);
+        }
     };
-    return <section className="profile-security-card" aria-label="验证码验证身份">
-        <h4>验证码验证身份</h4>
-        <p>发送验证码至已验证的联系方式。</p>
-        {user.phone && user.phoneVerifiedAt ? <Button disabled={busy || retryAt > now} onClick={() => void send("sms")}>手机 {user.phone.slice(0, 3)}****{user.phone.slice(-4)}</Button> : null}
-        {user.email && user.emailVerifiedAt ? <Button disabled={busy || retryAt > now} onClick={() => void send("email")}>邮箱 {user.email.slice(0, 1)}***{user.email.slice(user.email.indexOf("@"))}</Button> : null}
-        {retryAt > now ? <p role="status">{profileSecondsRemaining(retryAt, now)} 秒后可重发</p> : null}
-        {ticket ? <div>
-            <label>验证码 <Input value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" maxLength={6} /></label>
-            <Button disabled={busy || ticket.expiresAt <= now || !/^\d{6}$/.test(code)} onClick={() => void confirm()}>验证身份</Button>
-            {ticket.expiresAt <= now ? <p role="status">验证码已过期，请重新获取。</p> : null}
-        </div> : null}
-    </section>;
+    return (
+        <section className="profile-security-card" aria-label="验证码验证身份">
+            <h4>验证码验证身份</h4>
+            <p>发送验证码至已验证的联系方式。</p>
+            {user.phone && user.phoneVerifiedAt ? (
+                <Button disabled={busy || retryAt > now} onClick={() => void send("sms")}>
+                    手机 {user.phone.slice(0, 3)}****{user.phone.slice(-4)}
+                </Button>
+            ) : null}
+            {user.email && user.emailVerifiedAt ? (
+                <Button disabled={busy || retryAt > now} onClick={() => void send("email")}>
+                    邮箱 {user.email.slice(0, 1)}***{user.email.slice(user.email.indexOf("@"))}
+                </Button>
+            ) : null}
+            {retryAt > now ? <p role="status">{profileSecondsRemaining(retryAt, now)} 秒后可重发</p> : null}
+            {ticket ? (
+                <div>
+                    <label>
+                        验证码 <Input value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" maxLength={6} />
+                    </label>
+                    <Button disabled={busy || ticket.expiresAt <= now || !/^\d{6}$/.test(code)} onClick={() => void confirm()}>
+                        验证身份
+                    </Button>
+                    {ticket.expiresAt <= now ? <p role="status">验证码已过期，请重新获取。</p> : null}
+                </div>
+            ) : null}
+        </section>
+    );
 }
 
 export function ProfilePane() {
@@ -373,14 +403,10 @@ export function ProfilePane() {
 
                     {!profile.hasPassword ? (
                         <Callout tone={reauthReady ? "success" : "info"} title="验证当前身份" icon={ShieldCheck}>
-                            {reauthReady
-                                ? `身份验证已通过，有效期剩余 ${profileSecondsRemaining(Date.parse(profile.reauthenticatedUntil!), now)} 秒。`
-                                : "设置密码前，请使用已验证的联系方式重新验证，验证有效期为 5 分钟；如无可用方式，请联系管理员。"}
+                            {reauthReady ? `身份验证已通过，有效期剩余 ${profileSecondsRemaining(Date.parse(profile.reauthenticatedUntil!), now)} 秒。` : "设置密码前，请使用已验证的联系方式重新验证，验证有效期为 5 分钟；如无可用方式，请联系管理员。"}
                         </Callout>
                     ) : null}
-                    {!profile.hasPassword && (profile.user.phoneVerifiedAt || profile.user.emailVerifiedAt) ? (
-                        <ProfileOTPReauth key={profile.user.id} user={profile.user} onVerified={() => void profileQuery.refetch()} />
-                    ) : null}
+                    {!profile.hasPassword && (profile.user.phoneVerifiedAt || profile.user.emailVerifiedAt) ? <ProfileOTPReauth key={profile.user.id} user={profile.user} onVerified={() => void profileQuery.refetch()} /> : null}
 
                     <div className="profile-security-heading">
                         <h3>账户安全</h3>
@@ -481,16 +507,7 @@ export function ProfilePane() {
                                     更换邮箱需要使用当前登录密码验证身份，请先在上方设置登录密码。
                                 </Callout>
                             ) : (
-                                <Form
-                                    form={emailForm}
-                                    name="profile-email"
-                                    layout="vertical"
-                                    requiredMark={false}
-                                    className="profile-form"
-                                    disabled={!!pending}
-                                    onValuesChange={resetEmailTicket}
-                                    onFinish={(values) => void saveEmail(values)}
-                                >
+                                <Form form={emailForm} name="profile-email" layout="vertical" requiredMark={false} className="profile-form" disabled={!!pending} onValuesChange={resetEmailTicket} onFinish={(values) => void saveEmail(values)}>
                                     <Form.Item name="currentPassword" label="当前密码" rules={[{ required: true, message: "请输入当前密码以验证身份" }]}>
                                         <Input.Password autoComplete="current-password" />
                                     </Form.Item>

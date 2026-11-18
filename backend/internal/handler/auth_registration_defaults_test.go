@@ -49,8 +49,8 @@ func TestRegistrationHTTPStartsWithZeroCreditsAndKeepsPublicRegistrationClosed(t
 		Data struct {
 			Account struct {
 				UserID    string `json:"userId"`
-				Available int64 `json:"availableMicrocredits"`
-				Reserved  int64 `json:"reservedMicrocredits"`
+				Available int64  `json:"availableMicrocredits"`
+				Reserved  int64  `json:"reservedMicrocredits"`
 			} `json:"account"`
 			Policy struct {
 				SignupBonus int64 `json:"signupBonusMicrocredits"`
