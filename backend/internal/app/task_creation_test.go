@@ -14,7 +14,7 @@ import (
 
 func TestWorkbenchKindFromTaskInputRequiresWorkbenchMetadataAndMatchingTaskType(t *testing.T) {
 	input := map[string]any{
-		"mode": "image",
+		"mode":     "image",
 		"metadata": map[string]any{"source": "workbench", "workbenchKind": "image"},
 	}
 	if got := workbenchKindFromTaskInput(input, "canvas_image"); got != model.WorkbenchKindImage {

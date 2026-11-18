@@ -23,9 +23,6 @@ type (
 	PasswordResetRequest       = auth.PasswordResetRequest
 	EmailSettingRequest        = auth.EmailSettingRequest
 	PublicEmailSetting         = auth.PublicEmailSetting
-	LinuxDOSettingRequest      = auth.LinuxDOSettingRequest
-	PublicLinuxDOSetting       = auth.PublicLinuxDOSetting
-	LinuxDOCallbackResult      = auth.LinuxDOCallbackResult
 	LibTVSettingRequest        = auth.LibTVSettingRequest
 	PublicLibTVSetting         = auth.PublicLibTVSetting
 	LibTVImportRequest         = auth.LibTVImportRequest
@@ -191,26 +188,6 @@ func (s *Service) VerifyRegistrationEmailCode(email string, rawCode string) (*mo
 	return s.authDomain().VerifyRegistrationEmailCode(email, rawCode)
 }
 
-func (s *Service) AdminLinuxDOSetting(actor *model.User) (*PublicLinuxDOSetting, error) {
-	return s.authDomain().AdminLinuxDOSetting(actor)
-}
-
-func (s *Service) UpdateLinuxDOSetting(actor *model.User, req LinuxDOSettingRequest) (*PublicLinuxDOSetting, error) {
-	return s.authDomain().UpdateLinuxDOSetting(actor, req)
-}
-
-func (s *Service) LinuxDOEnabled() bool {
-	return s.authDomain().LinuxDOEnabled()
-}
-
-func (s *Service) BeginLinuxDOLogin(nextPath string, acceptedTerms bool) (string, error) {
-	return s.authDomain().BeginLinuxDOLogin(nextPath, acceptedTerms)
-}
-
-func (s *Service) CompleteLinuxDOLogin(stateValue string, code string, cookieValue string, contexts ...LoginContext) (*LinuxDOCallbackResult, error) {
-	return s.authDomain().CompleteLinuxDOLogin(stateValue, code, cookieValue, contexts...)
-}
-
 func (s *Service) AdminLibTVSetting(actor *model.User) (*PublicLibTVSetting, error) {
 	return s.authDomain().AdminLibTVSetting(actor)
 }
@@ -265,4 +242,9 @@ func hashToken(token string) string {
 
 func randomToken() string {
 	return auth.RandomToken()
+}
+
+// SetAuthSMSDelivery 替换认证域使用的短信发送器；供 HTTP 测试注入 stub，避免真实发送。
+func (s *Service) SetAuthSMSDelivery(delivery auth.SMSDelivery) {
+	s.authDomain().SetSMSDelivery(delivery)
 }

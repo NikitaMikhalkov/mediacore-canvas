@@ -5,14 +5,20 @@ description: 信封、错误码与 OpenAPI
 
 # HTTP API 合同
 
+## 登录会话期限
+
+密码、验证码及注册后自动登录继续使用同一会话机制。新会话的服务端到期时间固定为创建时起七天，登录 Cookie 的 `Max-Age` 同为 `604800` 秒；访问会话、个人信息或其他接口不会续期。退出撤销当前会话并清除 Cookie，密码找回成功撤销该账号全部旧会话；到期或禁用账号的旧 Cookie 不再授予私有访问。
+
+Cookie 继续采用 `HttpOnly`、`Path=/`、`SameSite=Lax`；HTTPS 或受信任代理标记为 HTTPS 时使用 `Secure`。真实域名、代理和 HTTPS 下的浏览器验收属于部署检查。此期限调整作用于新建会话，不批量修改已有会话记录。
+
 ## 用户登录日志
 
 菜单“用户与运营 → 用户登录日志”，页面 `/admin/login-logs`。查询在 service 校验管理员权限：匿名 401、普通用户 403。
 
-- `GET /api/admin/login-logs`：支持 `keyword`（用户名、昵称、脱敏账号或用户 ID）、`event=login|logout`、`method=password|email|sms|linuxdo|verification|unknown`、`result=success|failed`、精确 `ip`、RFC3339 `from/to`（含边界）、`page/pageSize`。开始时间不能晚于结束时间。默认每页 20 条、时间倒序；成功 `data={logs,total,page,pageSize}`，空结果 `logs=[]`。
+- `GET /api/admin/login-logs`：支持 `keyword`（用户名、昵称、脱敏账号或用户 ID）、`event=login|logout`、`method=password|email|sms|verification|unknown`、`result=success|failed`、精确 `ip`、RFC3339 `from/to`（含边界）、`page/pageSize`。开始时间不能晚于结束时间。默认每页 20 条、时间倒序；成功 `data={logs,total,page,pageSize}`，空结果 `logs=[]`。
 - `GET /api/admin/login-logs/:id`：成功 `data={log}`；不存在返回 404。包含用户快照、时间、事件、来源、方式、IP、UA、安全原因码/文案和非凭据的关联会话标识。
 
-后端在密码、邮箱/短信验证码、Linux.do 登录、注册后自动登录及主动退出的真实认证路径记录，不提供客户端任意新增日志接口。`verification` 表示凭据/请求无效导致方式无法识别；`unknown` 表示上线前会话未保存方式。`source=registration` 标记注册自动登录。退出失败不清 Cookie，不再忽略撤销错误。刷新状态和会话自然过期不新增事件。浏览器/系统由页面根据 UA 展示，无法识别时明确标注；UA 是客户端自报信息。
+后端在密码、邮箱/短信验证码、注册后自动登录及主动退出的真实认证路径记录，不提供客户端任意新增日志接口。`verification` 表示凭据/请求无效导致方式无法识别；`unknown` 表示上线前会话未保存方式。`source=registration` 标记注册自动登录。退出失败不清 Cookie，不再忽略撤销错误。刷新状态和会话自然过期不新增事件。浏览器/系统由页面根据 UA 展示，无法识别时明确标注；UA 是客户端自报信息。
 
 ## 个人信息
 
@@ -20,17 +26,17 @@ description: 信封、错误码与 OpenAPI
 
 | 路径 | 入参与结果 |
 | --- | --- |
-| `GET /auth/profile` | 返回 `user`、`hasPassword`、`emailEnabled`、`linuxdoEnabled` 和可选 `reauthenticatedUntil`；密码散列、头像图片正文、内部缓存版本均不在用户 JSON 中 |
+| `GET /auth/profile` | 返回 `user`、`hasPassword`、`emailEnabled` 和可选 `reauthenticatedUntil`；密码散列、头像图片正文、内部缓存版本均不在用户 JSON 中 |
 | `PUT /auth/profile/avatar` | multipart `file`，只接受真实 PNG/JPEG、最大 5 MiB；返回 `{ user }`，包含带版本的头像地址 |
-| `DELETE /auth/profile/avatar` | 清除个人头像并明确选择系统默认头像；第三方重新登录不会覆盖该选择；返回 `{ user }` |
+| `DELETE /auth/profile/avatar` | 清除个人头像并明确选择系统默认头像；该选择不会被覆盖；返回 `{ user }` |
 | `POST /auth/profile/avatar/default` | `{ preset }`，只接受 `person/director/camera/cat/rabbit/robot/rocket/sparkles`；保存选择并清除个人图片，返回 `{ user }` |
 | `GET /auth/profile/avatar/:userId` | 只读取本账号的 PNG，`Cache-Control: private, no-store`；账号之间拒绝读取 |
 | `POST /auth/profile/password` | `{ currentPassword, newPassword }`；新密码至少 8 个 Unicode 字符、UTF-8 不超过 72 字节；返回 `{ changed: true }` 并清除 Cookie、撤销全部会话 |
 | `POST /auth/profile/email-code` | `{ email, currentPassword }`；向未占用的新邮箱发送验证码，返回 `{ ticket, expiresIn, retryAfter }` |
 | `POST /auth/profile/email` | `{ ticket, emailCode, currentPassword }`；验证后更新邮箱及验证时间、撤销全部会话并清除 Cookie；返回 `{ changed: true, notificationStatus }` |
-| `GET /auth/profile/linuxdo/start` | 纯第三方账号重新核验身份的入口；绑定原用户和原会话，成功回到 `/settings?section=profile&reauth=success`，失败回到该页的 `reauth=error` 状态 |
+| `POST /auth/profile/reauth-code` / `POST /auth/profile/reauth` | 无密码账号用当前已验证的手机或邮箱获取并确认验证码（`profile_reauth` 用途，绑定当前会话）；成功后该会话获得 5 分钟的重新核验标记，只授权设置密码 |
 
-已有本地密码的账号必须验证当前密码。纯 Linux.do 账号设置密码或更换邮箱时，必须先完成同一会话内的重新授权，核验必须匹配原第三方用户标识；有效期为 5 分钟。邮箱验证码用途固定为 `profile_email`，绑定当前会话与凭据状态，6 位数字、10 分钟有效、最多 5 次核验；收件地址跨场景共享 60 秒发送冷却、每小时 5 次和每天 20 次额度。发送失败明确报错；邮件服务未启用时禁止更换邮箱。
+已有本地密码的账号必须验证当前密码。无密码账号设置密码时，必须先完成同一会话内的验证码重新核验（有效期 5 分钟）；该标记不能用于更换邮箱——更换邮箱（发送验证码与最终变更）只认当前密码，无密码账号须先设置密码。邮箱验证码用途固定为 `profile_email`，绑定当前会话与凭据状态，6 位数字、10 分钟有效、最多 5 次核验；收件地址跨场景共享 60 秒发送冷却、每小时 5 次和每天 20 次额度。发送失败明确报错；邮件服务未启用时禁止更换邮箱。
 
 新邮箱验证之前保留原绑定。更新及验证码消费、登录会话撤销一起提交，唯一性检查在事务内重复执行。更新后向原邮箱发通知，`notificationStatus` 为 `sent`、`failed` 或 `not_needed`；`failed` 表示邮箱已更新、原邮箱通知失败，不能把已成功更新显示成未保存。接口使用现有业务错误信封和限流规则，密码、验证码和 ticket 不进入 URL。
 
@@ -152,7 +158,9 @@ CANVAS_BACKEND_DATA_DIR=/明确的数据目录 ./migrate-schema repair-canvas-re
 
 `POST /auth/register` 的 JSON 请求必须携带布尔值 `acceptedTerms: true`，首次创建管理员也适用。缺省、`false` 或 `null` 均按未同意处理，在创建用户、消费验证码和创建会话前返回 HTTP 400，提示“请先同意<协议名称>”。原有注册开放、邮箱白名单、验证码与限流校验继续生效。
 
-`GET /auth/linuxdo/start` 可携带 `acceptedTerms=true`，只有该精确值表示同意。服务端将标志写入一次性的 OAuth state；回调仅在新建 Linux.do 用户时要求该 state 已同意，不从回调参数重新取值。已有 Linux.do 用户可从登录页继续登录，无需传此参数；同意协议不绕过注册关闭策略。
+注册页面沿用现有接口，先填写资料与本次验证码，再进入独立的设置密码步骤。验证码与密码一起提交到 `POST /auth/register` 后，服务端才核验验证码并创建账号；前一步仅检查本次 ticket 和六位验证码是否已填写，不展示“邮箱已验证”。返回修改资料会清除待提交密码，验证码发送倒计时保留。现有接口没有仅验证注册邮箱并签发后续设置密码凭据的步骤，因此“服务端先确认邮箱、再设置密码”仍是待决能力差异，不能视为已完成。
+
+新安装沿用默认关闭普通注册的配置；创建首个管理员后仍须管理员明确开放，邮件及部署验收前不自动启用。未保存积分策略时，新账号默认注册奖励为零积分；已保存的管理员策略继续生效，需要管理员在原积分策略入口确认注册奖励为零。邮件与服务协议的默认品牌为 Mediacore，自定义发件名称仍由原配置决定。
 
 协议名称与正文由管理员在 `PATCH /admin/settings/registration` 配置，公开读取面是 `GET /auth/settings` 的 `agreementTitle`、`agreementContent`。`agreementTitle` 未配置时按当前外观品牌名生成“<品牌名>服务协议”，因此外观改名后注册页文案同步；接口返回的标题不含书名号，由注册页补《》。`agreementContent` 支持多段文本，按空行分段渲染，留空时注册页提示“服务协议内容待补充”。
 

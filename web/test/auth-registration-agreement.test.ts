@@ -15,20 +15,19 @@ describe("注册服务协议", () => {
         expect(source).toContain("[agreementAccepted, setAgreementAccepted] = useState(false)");
         expect(source).toContain("disabled={disabled || registerCountdown > 0 || !agreementAccepted}");
         expect(source).toContain("if (registering.current || registerCountdown > 0) return;");
-        expect(source).toContain("disabled={!agreementAccepted}");
     });
 
-    test("普通注册与 Linux.do 注册传递同意状态，登录入口保留原合同", () => {
+    test("注册传递同意状态，登录与注册页不再提供 Linux.do 入口", () => {
         const page = readFileSync(resolve(import.meta.dir, "../src/pages/auth/register.tsx"), "utf8");
         const login = readFileSync(resolve(import.meta.dir, "../src/pages/auth/login.tsx"), "utf8");
         const api = readFileSync(resolve(import.meta.dir, "../src/services/api/auth.ts"), "utf8");
 
         expect(page).toContain("acceptedTerms: agreementAccepted");
-        expect(page).toContain("agreementAccepted ? linuxDOLoginURL(next, true) : undefined");
         expect(page).toContain("message.warning(`请先同意${agreementTitle}`)");
-        expect(login).toContain("linuxDOLoginURL(next)");
+        expect(page).not.toContain("linuxDOLoginURL");
+        expect(login).not.toContain("linuxDOLoginURL");
         expect(api).toContain("acceptedTerms: boolean");
-        expect(api).toContain("acceptedTerms?: boolean");
+        expect(api).not.toContain("acceptedTerms?: boolean");
     });
 
     test("协议标题与条款来自后台配置而不是硬编码常量", () => {
@@ -52,7 +51,7 @@ describe("注册服务协议", () => {
         expect(page).toContain("读取注册设置失败，暂时无法确认服务协议名称与条款。");
         expect(page).toContain("setSettingsReloadKey((value) => value + 1)");
         // 协议入口只在拿到设置后渲染，读不到配置就不展示协议名。
-        expect(page).toContain("{settings ? (");
+        expect(page).toContain('{settings && stage === "details" ? (');
     });
 
     test("公开认证设置暴露协议字段，管理接口可回传协议正文", () => {

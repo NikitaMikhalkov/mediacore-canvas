@@ -18,21 +18,6 @@ func TestLoginLogMasksAttemptedContacts(t *testing.T) {
 	}
 }
 
-func TestLoginLogsExcludeIncompleteProfileReauthentication(t *testing.T) {
-	s, db, user, cookie := newProfileTestService(t)
-	state := model.OAuthState{ID: "reauth-state", Provider: "linuxdo", StateHash: HashToken("profile-reauth-state"), ReauthUserID: user.ID, ReauthSessionID: "session-one", ExpiresAt: time.Now().Add(time.Hour)}
-	if err := db.Create(&state).Error; err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.CompleteLinuxDOLogin("profile-reauth-state", "", cookie); err == nil {
-		t.Fatal("missing code accepted")
-	}
-	var count int64
-	if err := db.Model(&model.LoginLog{}).Count(&count).Error; err != nil || count != 0 {
-		t.Fatalf("profile reauthentication logged as login: %d %v", count, err)
-	}
-}
-
 func TestLoginLogRegistrationSource(t *testing.T) {
 	s, db := newRegistrationTestService(t)
 	result, err := s.Register(RegisterRequest{Username: "creator", Password: "test-password", AcceptedTerms: true, LoginContext: LoginContext{IP: "192.0.2.2", UserAgent: "test-client"}})

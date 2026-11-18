@@ -85,12 +85,8 @@ func avatarStatus(t *testing.T, err error, status int) {
 	}
 }
 
-func TestProfileAvatarLifecyclePersistsAndOverridesLinkedAvatar(t *testing.T) {
+func TestProfileAvatarLifecyclePersists(t *testing.T) {
 	s, db, actor := avatarTestService(t)
-	identity := model.UserIdentity{ID: "identity-avatar", UserID: actor.ID, Provider: "linuxdo", Subject: "123", AvatarURL: "https://example.com/linked.png"}
-	if err := db.Create(&identity).Error; err != nil {
-		t.Fatal(err)
-	}
 	if err := db.Model(&model.User{}).Where("id = ?", actor.ID).Update("display_name", "Latest").Error; err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +94,7 @@ func TestProfileAvatarLifecyclePersistsAndOverridesLinkedAvatar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.AvatarMode != "custom" || !strings.HasPrefix(result.AvatarURL, "/api/auth/profile/avatar/avatar-user?v=") || result.IdentityID != "123" || result.DisplayName != "Latest" || result.PasswordHash != "preserved-hash" {
+	if result.AvatarMode != "custom" || !strings.HasPrefix(result.AvatarURL, "/api/auth/profile/avatar/avatar-user?v=") || result.DisplayName != "Latest" || result.PasswordHash != "preserved-hash" {
 		t.Fatalf("unexpected uploaded profile: %#v", result)
 	}
 	publicJSON, err := json.Marshal(result)
@@ -130,7 +126,7 @@ func TestProfileAvatarLifecyclePersistsAndOverridesLinkedAvatar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.AvatarMode != "default" || result.AvatarPreset != "person" || result.AvatarURL != "" || result.AvatarVersion != "" || result.IdentityID != "123" {
+	if result.AvatarMode != "default" || result.AvatarPreset != "person" || result.AvatarURL != "" || result.AvatarVersion != "" {
 		t.Fatalf("unexpected default profile: %#v", result)
 	}
 	var count int64
@@ -142,7 +138,7 @@ func TestProfileAvatarLifecyclePersistsAndOverridesLinkedAvatar(t *testing.T) {
 		t.Fatal(err)
 	}
 	refreshed, err = s.PublicAuthUser(fresh)
-	if err != nil || refreshed.AvatarURL != "" || refreshed.IdentityProvider != "linuxdo" {
+	if err != nil || refreshed.AvatarURL != "" {
 		t.Fatalf("default selection did not survive refresh: %#v, %v", refreshed, err)
 	}
 	_, err = s.ProfileAvatarContent(actor, actor.ID)
@@ -309,18 +305,15 @@ func TestProfileAvatarTransactionRollsBackBlobFailures(t *testing.T) {
 	}
 }
 
-func TestProfileAvatarPresetsValidatePersistAndKeepLinkedIdentity(t *testing.T) {
+func TestProfileAvatarPresetsValidateAndPersist(t *testing.T) {
 	s, db, actor := avatarTestService(t)
-	if err := db.Create(&model.UserIdentity{ID: "preset-identity", UserID: actor.ID, Provider: "linuxdo", Subject: "123", AvatarURL: "https://example.com/linked.png"}).Error; err != nil {
-		t.Fatal(err)
-	}
 	for _, preset := range []string{"person", "director", "camera", "cat", "rabbit", "robot", "rocket", "sparkles"} {
 		t.Run(preset, func(t *testing.T) {
 			result, err := s.SelectDefaultProfileAvatar(actor, preset)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if result.AvatarMode != "default" || result.AvatarPreset != preset || result.AvatarURL != "" || result.AvatarVersion != "" || result.IdentityID != "123" {
+			if result.AvatarMode != "default" || result.AvatarPreset != preset || result.AvatarURL != "" || result.AvatarVersion != "" {
 				t.Fatalf("unexpected preset response: %#v", result)
 			}
 			data, err := json.Marshal(result)

@@ -2,7 +2,6 @@ import type { ColumnsType } from "antd/es/table";
 import { Eye, Pencil, Power } from "lucide-react";
 
 import { formatCredits } from "@/constant/credits";
-import { IdentityProviderBadge } from "@/components/layout/identity-provider-badge";
 import { AdminRowActions, AdminStatusBadge } from "../components/admin-ui";
 import type { AdminUser } from "@/services/api/auth";
 
@@ -38,7 +37,7 @@ export function createUserColumns({
             dataIndex: "username",
             render: (_, user) => (
                 <div>
-                    <div className="flex items-center gap-1.5"><button type="button" className="admin-table-primary-link font-medium" onClick={() => onView(user)}>{user.displayName || user.username}</button><IdentityProviderBadge user={user} /></div>
+                    <div className="flex items-center gap-1.5"><button type="button" className="admin-table-primary-link font-medium" onClick={() => onView(user)}>{user.displayName || user.username}</button></div>
                     <div className="text-xs text-foreground/45">@{user.username}</div>
                 </div>
             ),

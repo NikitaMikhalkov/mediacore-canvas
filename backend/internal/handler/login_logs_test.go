@@ -167,7 +167,7 @@ func TestLoginLogsAdminAccessAndFailedLogin(t *testing.T) {
 	if bad := profileRequest(router, "GET", "/api/admin/login-logs?event=invalid", "", cookie); bad.Code != 400 {
 		t.Fatalf("invalid filter: %d", bad.Code)
 	}
-	for _, query := range []string{"method=invalid", "result=invalid", "ip=invalid", "from=invalid", "from=2026-01-02T00:00:00Z&to=2026-01-01T00:00:00Z", "page=-1"} {
+	for _, query := range []string{"method=invalid", "method=linuxdo", "result=invalid", "ip=invalid", "from=invalid", "from=2026-01-02T00:00:00Z&to=2026-01-01T00:00:00Z", "page=-1"} {
 		if bad := profileRequest(router, "GET", "/api/admin/login-logs?"+query, "", cookie); bad.Code != 400 {
 			t.Fatalf("invalid query %s: %d", query, bad.Code)
 		}

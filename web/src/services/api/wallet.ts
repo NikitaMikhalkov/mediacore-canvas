@@ -127,25 +127,6 @@ export type ChannelModelMutation = {
     priceConfigured?: boolean;
 };
 
-export type LinuxDOSetting = {
-    enabled: boolean;
-    clientId: string;
-    clientSecret?: string;
-    hasClientSecret: boolean;
-    authorizationUrl: string;
-    tokenUrl: string;
-    userInfoUrl: string;
-    redirectUrl: string;
-    scopes: string[];
-    clientAuthMethod: "client_secret_post" | "client_secret_basic";
-    subjectField: string;
-    usernameField: string;
-    displayNameField: string;
-    emailField: string;
-    avatarField: string;
-    updatedAt?: string;
-};
-
 export type RegistrationSetting = {
     enabled: boolean;
     agreementTitle?: string;
@@ -262,14 +243,6 @@ export function getAdminCreditPolicy() {
 
 export function updateAdminCreditPolicy(policy: CreditPolicy) {
     return http.patch<{ policy: CreditPolicy }>("/admin/settings/credits", policy);
-}
-
-export function getAdminLinuxDOSetting() {
-    return http.get<{ setting: LinuxDOSetting }>("/admin/settings/linuxdo");
-}
-
-export function updateAdminLinuxDOSetting(input: Partial<LinuxDOSetting>) {
-    return http.patch<{ setting: LinuxDOSetting }>("/admin/settings/linuxdo", input);
 }
 
 export function getAdminRegistrationSetting() {

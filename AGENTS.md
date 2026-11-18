@@ -1,10 +1,12 @@
 # AGENTS.md
 
-本文件是影策仓库中 AI、自动化工具和协作者的工作约定。用户当前任务优先于本文件；本文件优先于个人习惯。所有结论应能回溯到代码、配置、测试、日志或文档，不用历史印象替代现状。
+本文件是 Mediacore 仓库中 AI、自动化工具和协作者的工作约定。用户当前任务优先于本文件；本文件优先于个人习惯。所有结论应能回溯到代码、配置、测试、日志或文档，不用历史印象替代现状。
 
 ## 1. 项目边界
 
-影策（`ddcat-ai/open-ai-canvas`）是面向 AI 影视与短剧创作的工作台，当前仍在快速开发。公开接口、数据结构和部署配置可能直接调整；除非任务明确要求，不为旧字段、旧 API 或旧数据增加兼容层。
+实施、拆票或设计前读取唯一[执行方案](docs/plans/mediacore-execution-plan.md)：原生能力验证 → 现有配置 → 必要局部调整，不自研缺失业务能力。产品目标与实际工作分别记录；上游设计、研究建议和需求规格不自动构成开发任务。决策依据见 [ADR-0014](docs/adr/0014-minimal-reuse-no-custom-systems.md)。
+
+Mediacore 是面向多用户的 AI 影视与短剧创作平台，当前仍在快速开发。公开接口、数据结构和部署配置可能直接调整；除非任务明确要求，不为旧字段、旧 API 或旧数据增加兼容层。
 
 仓库由几个边界清晰但可独立运行的单元组成：
 
@@ -20,7 +22,7 @@
 
 ### Agent 本地开发
 
-详细说明请参考 [docs/AGENT_LOCAL_DEVELOPMENT.md](docs/AGENT_LOCAL_DEVELOPMENT.md)。
+详细说明请参考[本地开发文档](docs/content/docs/backend/local-development.mdx)。
 
 **快速启动**：
 
@@ -129,7 +131,7 @@ cd web && bun run dev
 - 节点和对象名称要有可发现的铅笔入口并支持单击编辑；双击或右键不能是唯一入口。图片节点保持原始比例，面板不能长期遮挡主要画布空间。
 - Ant Design 共性主题和控件状态集中在 `web/src/lib/app-theme.ts` / `AppProviders`。自带外壳的产品弹窗用 `AppModal flush`，侧栏用 `AppDrawer`；不要再复制 `padding: 0` 的 Modal styles。内容外壳仍是 `.ant-modal-container`。
 - 第三方覆盖限定在具体组件，不新增全局 `.ant-modal-*`、`.dark .ant-switch-*`、`.ant-checkbox-*` 或 Segmented 状态补丁。新增 CSS 前先搜索同名选择器，回到唯一源规则修改。
-- 遵循 `docs/ui-design-system.md` 及项目三层 token：Primitive → Semantic → Component。inline style 优先引用 `var(--token-name)`，不要散落颜色、圆角、阴影和层级字面值。
+- 复用 `docs/plans/ui-design-system.mdx` 的组件合同及项目三层 token；视觉材质以 Mediacore 执行方案为准，不继续上游组件库替换计划。token 分层为 Primitive → Semantic → Component。inline style 优先引用 `var(--token-name)`，不要散落颜色、圆角、阴影和层级字面值。
 - 主操作、普通选中、Checkbox/Radio、Switch 是不同颜色角色；持久切换使用 `aria-pressed`，`type="primary"` 只表示当前主要命令。尊重 `prefers-reduced-motion`，键盘导航保留 `:focus-visible`。
 - 修改既有页面时直接修改真实组件、样式和路由。不得创建独立 HTML 来代替真实页面验证；只有用户明确要求原型或隔离设计稿时才可生成，并放在临时目录或用户指定位置，不得放入 `web/public/` 或产品构建目录。
 
@@ -158,9 +160,23 @@ cd web && bun run dev
 ## 9. 文档与交付
 
 - 根 `README.md` 只保留项目定位、能力概览、快速开始、部署、安全和文档入口；详细专题写入 `docs/content/docs/`。
-- 功能、代码地图、待办、待测试分别维护在 `docs/content/docs/overview/features.mdx`、`docs/content/docs/backend/code-map.mdx`、`docs/content/docs/progress/todo.mdx`、`docs/content/docs/progress/pending-test.mdx`。已实现但未由用户确认的变化先写入 `pending-test.mdx`。
+- 功能与代码地图分别维护在 `docs/content/docs/overview/features.mdx`、`docs/content/docs/backend/code-map.mdx`；原有待测试背景见 `docs/content/docs/progress/pending-test.mdx`。Mediacore 待办、验证证据和用户验收状态统一记录在 Linear 对应任务，不另建本地任务台账。
 - API、数据表、SSE、资源存储、部署或安全边界变化时同步对应专题文档；不要只改代码和根 README。
 - 文档默认中文，不写过期日期，不公开密码、Token、Cookie、真实账号或机器敏感路径。命令、端口、环境变量必须以当前脚本和 Compose 为准。
 - Git 提交说明使用 `<type>(<scope>): <业务模块> - <变更摘要>`，`type` 为 `feat|fix|refactor|perf|docs|test|build|ci|chore|revert`。
 
 交付前至少检查：改动是否聚焦、调用方和类型是否同步、错误/权限/数据归属是否完整、必要文档是否同步、验证是否如实说明、是否留下密钥或本地数据。
+
+## Agent skills
+
+### Issue tracker
+
+研发任务统一记录在 Linear 的「Mediacore」项目。创建、读取或更新任务前，读取 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+使用五个默认 triage 标签；分类任务前，读取 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+采用 single-context：根 `GLOSSARY.md` 记录术语，`docs/adr/` 记录架构决策。探索或设计前，读取 `docs/agents/domain.md`。

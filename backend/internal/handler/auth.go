@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -144,19 +143,6 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		setSessionCookie(c, result.Session, result.MaxAgeSecs)
 		ok(c, gin.H{"user": result.User})
 	})
-	r.GET("/auth/linuxdo/start", func(c *gin.Context) {
-		if !enforceRateLimit(c, "linuxdo-start:"+c.ClientIP(), 20, 10*time.Minute) {
-			return
-		}
-		acceptedTerms := c.Query("acceptedTerms") == "true"
-		target, err := svc.BeginLinuxDOLogin(c.Query("next"), acceptedTerms)
-		if err != nil {
-			failService(c, err)
-			return
-		}
-		c.Redirect(http.StatusFound, target)
-	})
-	r.GET("/auth/linuxdo/callback", rejectedLoginAudit(svc, "linuxdo"), linuxDOCallbackHandler(svc))
 	r.POST("/auth/logout", func(c *gin.Context) {
 		if err := svc.Logout(sessionCookie(c), loginRequestContext(c)); err != nil {
 			failService(c, err)
@@ -210,41 +196,6 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, gin.H{"channels": channels})
 	})
-}
-
-// 兼容已在 Linux.do OAuth 应用中登记的传统回调地址，处理逻辑与 /api/auth/linuxdo/callback 完全一致。
-func RegisterOAuthCallbackRoutes(r gin.IRoutes, svc *service.Service) {
-	r.GET("/oauth/linuxdo/callback", rejectedLoginAudit(svc, "linuxdo"), linuxDOCallbackHandler(svc))
-}
-
-func linuxDOCallbackHandler(svc *service.Service) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if !enforceRateLimit(c, "linuxdo-callback:"+c.ClientIP(), 30, 10*time.Minute) {
-			return
-		}
-		reauthentication, stateErr := svc.LinuxDOReauthenticationState(c.Query("state"))
-		if stateErr != nil {
-			if err := svc.RecordRejectedLogin("linuxdo", loginRequestContext(c), 400); err != nil {
-				log.Printf("OAuth rejected login audit write failed: error=%v", err)
-			}
-			c.Redirect(http.StatusFound, "/login?oauth_error="+url.QueryEscape("无法读取身份验证状态，请重试"))
-			return
-		}
-		c.Set("login_audit_handled", true)
-		result, err := svc.CompleteLinuxDOLogin(c.Query("state"), c.Query("code"), sessionCookie(c), loginRequestContext(c))
-		if err != nil {
-			if reauthentication {
-				c.Redirect(http.StatusFound, "/settings?section=profile&reauth=error")
-				return
-			}
-			c.Redirect(http.StatusFound, "/login?oauth_error="+url.QueryEscape(err.Error()))
-			return
-		}
-		if !result.Reauthenticated {
-			setSessionCookie(c, result.Session.Session, result.Session.MaxAgeSecs)
-		}
-		c.Redirect(http.StatusFound, result.Next)
-	}
 }
 
 func RegisterAdminRoutes(r *gin.RouterGroup, svc *service.Service) {

@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { App, Avatar, Button, Form, Input, Skeleton } from "antd";
 import { BadgeCheck, Crop, ImagePlus, KeyRound, Mail, RefreshCw, ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate } from "react-router";
 
 import { UserAvatar } from "@/components/layout/user-avatar";
 import { ImageCropDialog, type ImageCropRect } from "@/components/image-crop-dialog";
@@ -14,7 +14,7 @@ import { cropProfileAvatar } from "@/services/profile-avatar";
 import { loadProfileSession } from "@/services/profile-session";
 import { applyUserSession } from "@/lib/user-session";
 import { invalidateAuthSessionCache, type LocalUser } from "@/services/api/auth";
-import { changeProfileEmail, changeProfilePassword, profileLinuxDOReauthURL, requestProfileEmailCode, selectDefaultProfileAvatar, uploadProfileAvatar, type UserProfile } from "@/services/api/profile";
+import { changeProfileEmail, changeProfilePassword, confirmProfileReauth, requestProfileEmailCode, requestProfileReauthCode, selectDefaultProfileAvatar, uploadProfileAvatar, type UserProfile } from "@/services/api/profile";
 import { ApiError } from "@/services/api/request";
 import { useUserStore } from "@/stores/use-user-store";
 import { profileAvatarError, profilePasswordError, profileReauthReady, profileSecondsRemaining } from "./profile-validation";
@@ -28,10 +28,101 @@ type EmailTicket = { value: string; expiresAt: number };
 
 const errorMessage = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback);
 
+function ProfileOTPReauth({ user, onVerified }: { user: LocalUser; onVerified: () => void }) {
+    const { message } = App.useApp();
+    const [ticket, setTicket] = useState<{ value: string; method: "sms" | "email"; expiresAt: number } | null>(null);
+    const [code, setCode] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [retryAt, setRetryAt] = useState(0);
+    const [now, setNow] = useState(Date.now());
+    useEffect(() => {
+        const timer = window.setInterval(() => setNow(Date.now()), 1000);
+        return () => window.clearInterval(timer);
+    }, []);
+    // Bumped whenever the contact/session context changes so in-flight send/confirm results are discarded.
+    const generation = useRef(0);
+    useEffect(() => {
+        generation.current += 1;
+        setTicket(null);
+        setCode("");
+        setBusy(false);
+        setRetryAt(0);
+    }, [user.id, user.phone, user.email, user.phoneVerifiedAt, user.emailVerifiedAt]);
+    const send = async (method: "sms" | "email") => {
+        if (busy || retryAt > Date.now()) return;
+        const started = generation.current;
+        setBusy(true);
+        setTicket(null);
+        setCode("");
+        try {
+            const result = await requestProfileReauthCode(method);
+            if (started !== generation.current) return;
+            const received = Date.now();
+            setTicket({ value: result.ticket, method, expiresAt: received + result.expiresIn * 1000 });
+            setRetryAt(received + result.retryAfter * 1000);
+            setNow(received);
+            message.success("验证码已受理，请检查已验证的联系方式");
+        } catch (error) {
+            if (started !== generation.current) return;
+            if (error instanceof ApiError && error.retryAfterMs) setRetryAt(Date.now() + error.retryAfterMs);
+            message.error(errorMessage(error, "发送验证码失败"));
+        } finally {
+            if (started === generation.current) setBusy(false);
+        }
+    };
+    const confirm = async () => {
+        if (!ticket || ticket.expiresAt <= Date.now() || !/^\d{6}$/.test(code) || busy) return;
+        const started = generation.current;
+        setBusy(true);
+        try {
+            await confirmProfileReauth({ ticket: ticket.value, ...(ticket.method === "sms" ? { smsCode: code } : { emailCode: code }) });
+            if (started !== generation.current) return;
+            setTicket(null);
+            setCode("");
+            onVerified();
+            message.success("身份验证成功");
+        } catch (error) {
+            if (started !== generation.current) return;
+            setTicket(null);
+            setCode("");
+            message.error(errorMessage(error, "验证失败，请重新获取验证码"));
+        } finally {
+            if (started === generation.current) setBusy(false);
+        }
+    };
+    return (
+        <section className="profile-security-card" aria-label="验证码验证身份">
+            <h4>验证码验证身份</h4>
+            <p>发送验证码至已验证的联系方式。</p>
+            {user.phone && user.phoneVerifiedAt ? (
+                <Button disabled={busy || retryAt > now} onClick={() => void send("sms")}>
+                    手机 {user.phone.slice(0, 3)}****{user.phone.slice(-4)}
+                </Button>
+            ) : null}
+            {user.email && user.emailVerifiedAt ? (
+                <Button disabled={busy || retryAt > now} onClick={() => void send("email")}>
+                    邮箱 {user.email.slice(0, 1)}***{user.email.slice(user.email.indexOf("@"))}
+                </Button>
+            ) : null}
+            {retryAt > now ? <p role="status">{profileSecondsRemaining(retryAt, now)} 秒后可重发</p> : null}
+            {ticket ? (
+                <div>
+                    <label>
+                        验证码 <Input value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" maxLength={6} />
+                    </label>
+                    <Button disabled={busy || ticket.expiresAt <= now || !/^\d{6}$/.test(code)} onClick={() => void confirm()}>
+                        验证身份
+                    </Button>
+                    {ticket.expiresAt <= now ? <p role="status">验证码已过期，请重新获取。</p> : null}
+                </div>
+            ) : null}
+        </section>
+    );
+}
+
 export function ProfilePane() {
     const { message } = App.useApp();
     const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
     const queryClient = useQueryClient();
     const userId = useUserStore((state) => state.user?.id);
     const queryKey = ["user-profile", userId];
@@ -52,19 +143,10 @@ export function ProfilePane() {
     const [emailTicket, setEmailTicket] = useState<EmailTicket | null>(null);
     const [retryAt, setRetryAt] = useState(0);
     const [now, setNow] = useState(Date.now());
-    const oauthResult = searchParams.get("reauth");
-    const [reauthResult] = useState(oauthResult);
     const reauthReady = profileReauthReady(profile?.reauthenticatedUntil, now);
     const identityReady = !!profile?.hasPassword || reauthReady;
     const retrySeconds = profileSecondsRemaining(retryAt, now);
     const ticketSeconds = emailTicket ? profileSecondsRemaining(emailTicket.expiresAt, now) : 0;
-
-    useEffect(() => {
-        if (!oauthResult) return;
-        const next = new URLSearchParams(searchParams);
-        next.delete("reauth");
-        setSearchParams(next, { replace: true });
-    }, [oauthResult, searchParams, setSearchParams]);
 
     useEffect(() => {
         const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -227,10 +309,10 @@ export function ProfilePane() {
     };
 
     const sendEmailCode = async () => {
-        if (!profile?.emailEnabled || !(profile.hasPassword || profileReauthReady(profile.reauthenticatedUntil, Date.now())) || profileSecondsRemaining(retryAt, Date.now()) || pendingRef.current) return;
+        if (!profile?.emailEnabled || !profile.hasPassword || profileSecondsRemaining(retryAt, Date.now()) || pendingRef.current) return;
         let values: EmailFields;
         try {
-            values = await emailForm.validateFields(profile.hasPassword ? ["email", "currentPassword"] : ["email"]);
+            values = await emailForm.validateFields(["email", "currentPassword"]);
         } catch {
             return;
         }
@@ -239,7 +321,7 @@ export function ProfilePane() {
         setEmailTicket(null);
         emailForm.setFieldValue("emailCode", "");
         try {
-            const result = await requestProfileEmailCode({ email: values.email.trim(), currentPassword: profile.hasPassword ? values.currentPassword : "" });
+            const result = await requestProfileEmailCode({ email: values.email.trim(), currentPassword: values.currentPassword });
             const receivedAt = Date.now();
             setEmailTicket({ value: result.ticket, expiresAt: receivedAt + result.expiresIn * 1000 });
             setRetryAt(receivedAt + result.retryAfter * 1000);
@@ -254,10 +336,10 @@ export function ProfilePane() {
     };
 
     const saveEmail = async (values: EmailFields) => {
-        if (!profile?.emailEnabled || !(profile.hasPassword || profileReauthReady(profile.reauthenticatedUntil, Date.now())) || !emailTicket || !profileSecondsRemaining(emailTicket.expiresAt, Date.now()) || !begin("email")) return;
+        if (!profile?.emailEnabled || !profile.hasPassword || !emailTicket || !profileSecondsRemaining(emailTicket.expiresAt, Date.now()) || !begin("email")) return;
         setError("email", "");
         try {
-            const result = await changeProfileEmail({ ticket: emailTicket.value, emailCode: values.emailCode, currentPassword: profile.hasPassword ? values.currentPassword : "" });
+            const result = await changeProfileEmail({ ticket: emailTicket.value, emailCode: values.emailCode, currentPassword: values.currentPassword });
             await finishSecurityChange(result.notificationStatus === "failed" ? "邮箱已更新，但旧邮箱通知发送失败。所有登录会话已退出，请重新登录" : "邮箱已更新，所有登录会话已退出，请重新登录", result.notificationStatus === "failed");
         } catch (error) {
             setError("email", errorMessage(error, "修改邮箱失败，请重试"));
@@ -320,30 +402,11 @@ export function ProfilePane() {
                     </section>
 
                     {!profile.hasPassword ? (
-                        <Callout
-                            tone={reauthReady ? "success" : "info"}
-                            title="验证当前身份"
-                            icon={ShieldCheck}
-                            action={
-                                profile.linuxdoEnabled ? (
-                                    <Button disabled={!!pending} onClick={() => window.location.assign(profileLinuxDOReauthURL())}>
-                                        {reauthReady ? "重新验证" : "使用 Linux.do 验证"}
-                                    </Button>
-                                ) : undefined
-                            }
-                        >
-                            {reauthReady
-                                ? `身份验证已通过，有效期剩余 ${profileSecondsRemaining(Date.parse(profile.reauthenticatedUntil!), now)} 秒。`
-                                : profile.linuxdoEnabled
-                                  ? "设置密码或更换邮箱前，请使用已绑定的 Linux.do 账号重新验证。验证有效期为 5 分钟。"
-                                  : "当前账号未设置密码，且 Linux.do 验证未启用，请联系管理员。"}
-                            {reauthResult === "error" && !reauthReady ? (
-                                <p className="profile-reauth-error" role="alert">
-                                    Linux.do 身份验证失败，请重新验证。
-                                </p>
-                            ) : null}
+                        <Callout tone={reauthReady ? "success" : "info"} title="验证当前身份" icon={ShieldCheck}>
+                            {reauthReady ? `身份验证已通过，有效期剩余 ${profileSecondsRemaining(Date.parse(profile.reauthenticatedUntil!), now)} 秒。` : "设置密码前，请使用已验证的联系方式重新验证，验证有效期为 5 分钟；如无可用方式，请联系管理员。"}
                         </Callout>
                     ) : null}
+                    {!profile.hasPassword && (profile.user.phoneVerifiedAt || profile.user.emailVerifiedAt) ? <ProfileOTPReauth key={profile.user.id} user={profile.user} onVerified={() => void profileQuery.refetch()} /> : null}
 
                     <div className="profile-security-heading">
                         <h3>账户安全</h3>
@@ -439,22 +502,15 @@ export function ProfilePane() {
                                 <Callout tone="warning" title="邮件服务未启用">
                                     管理员尚未配置可用的邮件服务，暂时无法更换邮箱。
                                 </Callout>
+                            ) : !profile.hasPassword ? (
+                                <Callout tone="info" title="需要先设置登录密码">
+                                    更换邮箱需要使用当前登录密码验证身份，请先在上方设置登录密码。
+                                </Callout>
                             ) : (
-                                <Form
-                                    form={emailForm}
-                                    name="profile-email"
-                                    layout="vertical"
-                                    requiredMark={false}
-                                    className="profile-form"
-                                    disabled={!!pending || !identityReady}
-                                    onValuesChange={resetEmailTicket}
-                                    onFinish={(values) => void saveEmail(values)}
-                                >
-                                    {profile.hasPassword ? (
-                                        <Form.Item name="currentPassword" label="当前密码" rules={[{ required: true, message: "请输入当前密码以验证身份" }]}>
-                                            <Input.Password autoComplete="current-password" />
-                                        </Form.Item>
-                                    ) : null}
+                                <Form form={emailForm} name="profile-email" layout="vertical" requiredMark={false} className="profile-form" disabled={!!pending} onValuesChange={resetEmailTicket} onFinish={(values) => void saveEmail(values)}>
+                                    <Form.Item name="currentPassword" label="当前密码" rules={[{ required: true, message: "请输入当前密码以验证身份" }]}>
+                                        <Input.Password autoComplete="current-password" />
+                                    </Form.Item>
                                     <Form.Item
                                         name="email"
                                         label="新邮箱"
@@ -481,7 +537,7 @@ export function ProfilePane() {
                                         >
                                             <Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} />
                                         </Form.Item>
-                                        <Button loading={pending === "email-code"} disabled={!!pending || !identityReady || retrySeconds > 0} onClick={() => void sendEmailCode()}>
+                                        <Button loading={pending === "email-code"} disabled={!!pending || retrySeconds > 0} onClick={() => void sendEmailCode()}>
                                             {retrySeconds ? `${retrySeconds} 秒后重发` : emailTicket ? "重新发送" : "发送验证码"}
                                         </Button>
                                     </div>
@@ -495,7 +551,7 @@ export function ProfilePane() {
                                             {errors.email}
                                         </Callout>
                                     ) : null}
-                                    <Button type="primary" htmlType="submit" loading={pending === "email"} disabled={!!pending || !identityReady || !ticketSeconds}>
+                                    <Button type="primary" htmlType="submit" loading={pending === "email"} disabled={!!pending || !ticketSeconds}>
                                         更换邮箱
                                     </Button>
                                 </Form>

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"testing"
 
 	"yingce/backend/internal/model"
@@ -18,6 +19,14 @@ func TestCreateAdminUserCreatesActiveUserWithPasswordAndAudit(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// The default signup bonus is 0 (registration defaults); this test needs a configured bonus.
+	policy, err := json.Marshal(CreditPolicy{SignupBonusMicrocredits: 100 * CreditScale, CheckinBonusMicrocredits: 10 * CreditScale, DefaultMultiplierBPS: 10_000, ModelMultiplierBPS: map[string]int64{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&model.SystemSetting{Key: creditPolicySettingKey, ValueJSON: string(policy), UpdatedBy: actor.ID}).Error; err != nil {
+		t.Fatal(err)
+	}
 	created, err := (&Service{repo: repository.New(db)}).CreateAdminUser(&actor, CreateAdminUserRequest{
 		Username:    "new-user",
 		DisplayName: "New User",

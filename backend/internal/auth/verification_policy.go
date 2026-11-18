@@ -21,7 +21,7 @@ type VerificationPolicy struct {
 func (s *Service) verificationPolicy() (VerificationPolicy, error) {
 	setting, err := s.repo.SystemSetting(authPolicyKey)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return VerificationPolicy{EmailRegistration: true}, nil
+		return VerificationPolicy{SMSLogin: true, SMSRegistration: true, EmailRegistration: true}, nil
 	}
 	if err != nil {
 		return VerificationPolicy{}, err
@@ -80,7 +80,7 @@ func (s *Service) smsAvailable(scene string) (bool, error) {
 	return s.sms.Available(scene)
 }
 func (p VerificationPolicy) allows(purpose, method string) bool {
-	if purpose == "bind" {
+	if purpose == "bind" || purpose == "profile_reauth" {
 		return method == "sms" || method == "email"
 	}
 	if purpose == "login" {

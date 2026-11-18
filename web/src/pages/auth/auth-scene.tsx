@@ -29,22 +29,9 @@ const authCopy = {
     recovery: {
         eyebrow: "ACCOUNT RECOVERY",
         title: "重新设置密码",
-        description: "验证账号邮箱后，设置一个新的登录密码。",
+        description: "使用邮箱验证码设置一个新的登录密码。",
     },
 } as const;
-
-export function LinuxDOIcon() {
-    return (
-        <span
-            aria-hidden
-            className="size-5 shrink-0 rounded-full"
-            style={{
-                background: "linear-gradient(to bottom, #1d1d1f 0 33.333%, #efefef 33.333% 66.666%, #feb005 66.666% 100%)",
-                boxShadow: "0 0 0 1px rgba(255,255,255,.14)",
-            }}
-        />
-    );
-}
 
 export function AuthScene() {
     const appearance = useAppearanceStore((state) => state.appearance);

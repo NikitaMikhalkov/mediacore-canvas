@@ -7,7 +7,7 @@ description: 影策后端核心持久化表与状态边界
 
 ## 用户登录日志
 
-Schema 53 新增 `login_logs`，新库初始化、既有库升级和 SQLite → PostgreSQL 迁移共用此表。字段：`id`、可空 `user_id`、用户快照 `username/display_name/account`、`event`（login/logout）、`method`（password/email/sms/linuxdo/verification/unknown）、`source`（login/registration/logout）、`result`（success/failed）、`ip`、`user_agent`、`session_ref`、`reason/message`、`created_at`。用户、事件、方式、结果、IP、关联会话和时间有查询索引。
+Schema 53 新增 `login_logs`，新库初始化、既有库升级和 SQLite → PostgreSQL 迁移共用此表。字段：`id`、可空 `user_id`、用户快照 `username/display_name/account`、`event`（login/logout）、`method`（password/email/sms/verification/unknown）、`source`（login/registration/logout）、`result`（success/failed）、`ip`、`user_agent`、`session_ref`、`reason/message`、`created_at`。用户、事件、方式、结果、IP、关联会话和时间有查询索引。
 
 日志时间统一保存为 UTC，筛选按实际时刻匹配，页面按当前设备时区显示。登录成功日志与会话签发、退出成功日志与有效会话撤销各自在同一事务提交；日志写入失败会回滚会话操作并向调用方报错。退出需匹配 Token 哈希和有效期，既有会话有效期在 Go 中按真实时刻判断，避免 SQLite 不同时区字符串误判；无会话、过期、伪造和重复退出不产生成功事件。会话引用是 ID 的单向哈希，不能用于认证。用户删除/改名、会话到期清理不会改写日志快照。
 
@@ -43,7 +43,7 @@ Schema 45 新增 `upload_reservations`：`id`、`user_id`、`size`、`day`、`ex
 
 版本 51 `personal_profile_security` 增加个人信息与身份重新核验结构：`users.avatar_mode`（空字符串沿用第三方头像、`custom` 为个人上传、`default` 为系统头像）、`users.avatar_version`（仅用于头像地址，不作为用户 JSON 字段返回）；新增 `user_avatars`（主键 `user_id`、标准化 PNG `data`、`updated_at`）。头像图片与用户选择在同一事务保存或清除，独立于创作素材资源；数据库备份同时包含头像。上传最大 5 MiB、1600 万像素，服务端居中裁剪并缩小到不超过 512×512。
 
-`auth_sessions.reauthenticated_at` 记录当前会话的 Linux.do 重新核验时间，有效 5 分钟；`o_auth_states.reauth_user_id/reauth_session_id` 绑定发起重新核验的账号及会话。重新核验只允许原绑定的第三方身份，不创建账号或新登录会话。`auth_verifications.session_id/credential_hash` 将 `profile_email` 用途的验证码绑定到当前用户、当前会话和密码状态。密码、邮箱修改及旧会话撤销在同一事务提交；登录会话签发同时检查账号凭据，阻止并发旧密码登录在撤销之后再创建会话。升级执行 `migrate-schema up` / `verify`，禁止手工修改既有迁移记录。
+`auth_sessions.reauthenticated_at` 记录当前会话的验证码重新核验时间，有效 5 分钟，只授权无密码账号设置密码。Linux.do 登录已移除；`o_auth_states` 表、其 `reauth_*` 列、`user_identities` 表及已有行保留但不再有代码读写，不做删列迁移。`auth_verifications.session_id/credential_hash` 将 `profile_email` 用途的验证码绑定到当前用户、当前会话和密码状态。密码、邮箱修改及旧会话撤销在同一事务提交；登录会话签发同时检查账号凭据，阻止并发旧密码登录在撤销之后再创建会话。升级执行 `migrate-schema up` / `verify`，禁止手工修改既有迁移记录。
 
 当前结构版本为 54；版本 53 新增独立登录日志表 `login_logs`，详见本页“用户登录日志”。版本 50 新增 `canvas_mutation_receipts`，按 `(user_id, canvas_id, mutation_id)` 唯一记录画布 operations 请求摘要、确定性结果和提交 revision，供响应丢失后的幂等重放使用；receipt 与画布内容、revision 在同一事务提交。版本 49 `banner_sort_order` 为 `banner_announcements` 增加可配置的 `sort_order` 展示顺序；版本 48 `channel_proxy_url` 为 `model_channels` 增加渠道级出站代理地址 `proxy_url`，支持 `socks5://`、`http://`、`https://`；留空时沿用全局代理。代理地址只返回管理员视图，普通用户目录不暴露渠道代理或其中的认证信息。版本 42 `cloud_agent_pi_sessions` 新增 `cloud_agent_pi_sessions` 表，按运行 ID 保存 Pi 原生 JSONL 会话快照、用户 ID、乐观并发 revision 和更新时间；会话正文由 Agent runtime 管理，Go 只将其作为不透明快照读写，不替代有界控制检查点、事件日志或任务记录。版本 41 `resource_thumbnail` 为 `resources` 增加缩略图元数据。版本 40 `builtin_skill_tombstones` 新增内置技能删除记录，管理员删除平台技能后，后续启动同步不会重新创建该技能；版本 39 `skill_library_categories` 新增 `skill_library_categories` 表，并为 `user_skill_states` 增加 `library_category_id`，保存个人技能库分类及每个用户对技能的归类；分类不改变 `skills.tag` 的技能广场共享分类。版本 38 `prefixed_id_sequence_reconcile` 创建（若缺失）并校准 `id_sequences`：`CHANNEL`、`MODEL`、`PTIER`、`ATTEMPT`、`LMODEL`、`REVISION`、`ROUTE` 按对应业务表的最大有效 ID 前移，包含软删除记录，不回退已有序列、不重写业务 ID。分配新 ID 时再次校准并检查冲突；SQLite → PostgreSQL 迁移完成后也校准序列。 `cloud_agent_gemini_cache` 创建 `cloud_agent_gemini_caches`，保存用户范围内的官方 Gemini 缓存元数据；版本 37 `cloud_agent_gemini_cache_identity` 将缓存标识约束修正为 `(user_id, cache_key)`，移除旧的全局 cache_key 唯一索引。版本 35 `auth_notifications` 为认证通知与组合验证补齐 `auth_verifications`、`notification_quotas`、`sms_channels`、`sms_records` 四张表，并为 `users` 增加 `phone`、`email_verified_at`、`phone_verified_at`，为 `email_verification_codes` 增加 `attempts`；同时创建非空手机号唯一索引。版本 34 `task_media_recovery` 为 `tasks` 增加 `media_recovery_json`（text）和 `media_stage`（最长 24 字）。版本 33 `oauth_state_accepted_terms` 为 `o_auth_states` 增加非空布尔列 `accepted_terms`，默认 `false`，不替历史流程补造同意记录。
 
@@ -150,7 +150,7 @@ docker compose -f docker-compose.deploy.yml up -d backend web
 | --- | --- | --- |
 | `users` | 保存用户名、唯一非空邮箱、本地密码哈希、角色和状态 | 密码只保存 bcrypt 哈希；密码找回只面向状态正常且已有本地密码的账号 |
 | `auth_sessions` | 保存登录 Cookie 对应的服务端会话和令牌哈希 | 密码重置成功时删除该用户全部会话，旧 Cookie 立即失效 |
-| `o_auth_states` | 保存一次性 OAuth state、PKCE verifier、跳转路径和本次 `accepted_terms` 标志 | 有效期 10 分钟且只能消费一次；仅新建第三方账号时要求同意，已有账号登录不受该标志影响；不是长期协议签署记录 |
+| `o_auth_states` | 历史遗留：曾保存一次性 OAuth state（Linux.do 登录已移除，现无代码读写，表与已有行保留） | 有效期 10 分钟且只能消费一次；仅新建第三方账号时要求同意，已有账号登录不受该标志影响；不是长期协议签署记录 |
 | `email_verification_codes` | 保存注册和密码重置的一次性邮箱验证码 | 只保存带用途隔离的 HMAC 哈希；验证码 10 分钟过期、只能消费一次，明文不进入数据库 |
 
 密码重置在单个数据库事务中条件消费 `password_reset` 验证码、更新 `users.password_hash` 并删除 `auth_sessions`。任一步失败都会回滚，不能出现密码已修改但旧会话仍有效，或验证码已消耗但密码未更新的部分状态。

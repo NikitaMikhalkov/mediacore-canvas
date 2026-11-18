@@ -179,8 +179,6 @@ type (
 	LinkCanvasUnitRequest                  = app.LinkCanvasUnitRequest
 	LinkProjectAssetRequest                = app.LinkProjectAssetRequest
 	LinkShotAssetRequest                   = app.LinkShotAssetRequest
-	LinuxDOCallbackResult                  = app.LinuxDOCallbackResult
-	LinuxDOSettingRequest                  = app.LinuxDOSettingRequest
 	LogicalModelQuote                      = app.LogicalModelQuote
 	LogicalModelRequest                    = app.LogicalModelRequest
 	LogicalRouteRequest                    = app.LogicalRouteRequest
@@ -242,7 +240,6 @@ type (
 	PublicEmailSetting                     = app.PublicEmailSetting
 	PublicFeatureAvailability              = app.PublicFeatureAvailability
 	PublicLibTVSetting                     = app.PublicLibTVSetting
-	PublicLinuxDOSetting                   = app.PublicLinuxDOSetting
 	PublicLogicalModel                     = app.PublicLogicalModel
 	PublicLogicalModelPriceTier            = app.PublicLogicalModelPriceTier
 	PublicModelAvailability                = app.PublicModelAvailability

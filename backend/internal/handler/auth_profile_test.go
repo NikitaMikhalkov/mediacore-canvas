@@ -20,6 +20,7 @@ import (
 	"yingce/backend/internal/auth"
 	"yingce/backend/internal/database"
 	"yingce/backend/internal/model"
+	"yingce/backend/internal/platform"
 	"yingce/backend/internal/repository"
 	"yingce/backend/internal/service"
 )
@@ -54,6 +55,7 @@ func profileHandlerFixture(t *testing.T) (*gin.Engine, *gorm.DB, string) {
 	t.Cleanup(func() { ConfigureRuntime(nil); svc.Close(); sqlDB, _ := db.DB(); _ = sqlDB.Close() })
 	router := gin.New()
 	RegisterAuthRoutes(router.Group("/api"), svc)
+	RegisterFinanceRoutes(router.Group("/api"), svc)
 	return router, db, "profile-session.fixture-token"
 }
 
@@ -77,7 +79,7 @@ func TestProfileRoutesRejectAnonymousBeforeMutation(t *testing.T) {
 		{"DELETE", "/api/auth/profile/avatar"}, {"GET", "/api/auth/profile/avatar/profile-user"},
 		{"POST", "/api/auth/profile/avatar/default"},
 		{"POST", "/api/auth/profile/password"}, {"POST", "/api/auth/profile/email-code"},
-		{"POST", "/api/auth/profile/email"}, {"GET", "/api/auth/profile/linuxdo/start"},
+		{"POST", "/api/auth/profile/email"},
 	} {
 		rec := profileRequest(router, route.method, route.path, "{}", "")
 		if rec.Code != http.StatusUnauthorized {
@@ -216,5 +218,84 @@ func TestProfileAvatarHTTPPersistsServesAndRestoresDefault(t *testing.T) {
 	db.First(&user, "id = ?", "profile-user")
 	if user.AvatarMode != "default" || user.AvatarVersion != "" {
 		t.Fatalf("default not persisted: %q", user.AvatarMode)
+	}
+}
+
+func TestProfileOTPReauthenticationEndpointsRequireSession(t *testing.T) {
+	router, db, cookie := profileHandlerFixture(t)
+	for _, path := range []string{"/api/auth/profile/reauth-code", "/api/auth/profile/reauth"} {
+		if got := profileRequest(router, "POST", path, `{}`, ""); got.Code != http.StatusUnauthorized {
+			t.Fatalf("%s anonymous: %d", path, got.Code)
+		}
+		if got := profileRequest(router, "POST", path, `{}`, "missing-session.invalid"); got.Code != http.StatusUnauthorized {
+			t.Fatalf("%s bad cookie: %d", path, got.Code)
+		}
+	}
+	got := profileRequest(router, "POST", "/api/auth/profile/reauth-code", `{"method":"sms","phone":"13800138000"}`, cookie)
+	if got.Code == http.StatusOK {
+		t.Fatal("arbitrary client contact accepted")
+	}
+	var count int64
+	if err := db.Model(&model.AuthVerification{}).Where("purpose = ?", "profile_reauth").Count(&count).Error; err != nil || count != 0 {
+		t.Fatalf("unexpected challenge count %d: %v", count, err)
+	}
+	if err := db.Model(&model.User{}).Where("id = ?", "profile-user").Updates(map[string]any{"phone": "+8613900139000", "phone_verified_at": time.Now()}).Error; err != nil {
+		t.Fatal(err)
+	}
+	got = profileRequest(router, "POST", "/api/auth/profile/reauth-code", `{"method":"sms","phone":"13800138000"}`, cookie)
+	if got.Code != http.StatusServiceUnavailable {
+		t.Fatalf("unconfigured login SMS route: %d %s", got.Code, got.Body.String())
+	}
+	got = profileRequest(router, "POST", "/api/auth/profile/reauth", `{"ticket":"invalid","smsCode":"654321"}`, cookie)
+	if got.Code == http.StatusOK || strings.Contains(got.Body.String(), "654321") {
+		t.Fatal("invalid confirmation accepted or code reflected")
+	}
+	got = profileRequest(router, "POST", "/api/auth/verification", `{"purpose":"profile_reauth","method":"sms","phone":"13800138000"}`, cookie)
+	if got.Code == http.StatusOK {
+		t.Fatal("public profile reauthentication accepted")
+	}
+}
+
+func TestProfileOTPReauthenticationRespectsRateLimit(t *testing.T) {
+	router, db, cookie := profileHandlerFixture(t)
+	policy := platform.DefaultRuntimePolicy()
+	policy.Request.LoginAccountPerTenMinutes = 2
+	raw, err := json.Marshal(policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&model.SystemSetting{Key: "runtime_policy", ValueJSON: string(raw)}).Error; err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		rec := profileRequest(router, "POST", "/api/auth/profile/reauth", `{"ticket":"invalid"}`, cookie)
+		if i < 2 && rec.Code == http.StatusTooManyRequests {
+			t.Fatalf("limited too early: %d", i)
+		}
+		if i == 2 && rec.Code != http.StatusTooManyRequests {
+			t.Fatalf("limit missing: %d", rec.Code)
+		}
+	}
+}
+
+func TestLinuxDORoutesAndFieldsAreRemoved(t *testing.T) {
+	router, db, cookie := profileHandlerFixture(t)
+	if err := db.Model(&model.User{}).Where("id = ?", "profile-user").Update("role", model.UserRoleAdmin).Error; err != nil {
+		t.Fatal(err)
+	}
+	for _, route := range []struct{ method, path string }{
+		{"GET", "/api/auth/linuxdo/start"}, {"GET", "/api/auth/linuxdo/callback"},
+		{"GET", "/api/auth/profile/linuxdo/start"},
+		{"GET", "/api/admin/settings/linuxdo"}, {"PATCH", "/api/admin/settings/linuxdo"},
+	} {
+		if rec := profileRequest(router, route.method, route.path, "{}", cookie); rec.Code != http.StatusNotFound {
+			t.Errorf("%s %s returned %d, want 404", route.method, route.path, rec.Code)
+		}
+	}
+	for _, path := range []string{"/api/auth/settings", "/api/auth/profile"} {
+		rec := profileRequest(router, "GET", path, "", cookie)
+		if rec.Code != http.StatusOK || strings.Contains(strings.ToLower(rec.Body.String()), "linuxdo") {
+			t.Errorf("GET %s: %d %s", path, rec.Code, rec.Body.String())
+		}
 	}
 }

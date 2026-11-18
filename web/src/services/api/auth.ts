@@ -3,7 +3,7 @@ import type { BillingOrder, CreditLedgerEntry } from "@/services/api/wallet";
 import type { GenerationTask, TaskStatus } from "@/services/api/task-center";
 import type { CanvasDrawingEngineSetting } from "@/lib/canvas/canvas-drawing-engine";
 import type { FeatureAvailability } from "@/stores/use-user-store";
-import { http, apiBaseURL } from "@/services/api/request";
+import { http } from "@/services/api/request";
 import type { OSSConnectionTestInput, OSSConnectionTestResult, OSSProvider, S3Preset } from "@/lib/oss-settings";
 import type { VerificationPolicy } from "./verification";
 
@@ -25,9 +25,6 @@ export type LocalUser = {
     avatarUrl?: string;
     avatarMode?: "custom" | "default" | "";
     avatarPreset?: string;
-    identityProvider?: string;
-    identityId?: string;
-    identityUsername?: string;
     role: "admin" | "user";
     status: "active" | "disabled";
     lastLoginAt?: string;
@@ -397,7 +394,6 @@ export function getAuthSettings() {
         VerificationPolicy & {
             firstUser: boolean;
             registrationEnabled: boolean;
-            linuxdoEnabled: boolean;
             emailEnabled: boolean;
             emailCodeRequired: boolean;
             smsBindingAvailable: boolean;
@@ -406,12 +402,6 @@ export function getAuthSettings() {
             agreementContent?: string;
         }
     >("/auth/settings");
-}
-
-export function linuxDOLoginURL(next: string, acceptedTerms?: boolean) {
-    const base = String(apiBaseURL).replace(/\/$/, "");
-    const termsQuery = acceptedTerms === undefined ? "" : `&acceptedTerms=${acceptedTerms ? "true" : "false"}`;
-    return `${base}/auth/linuxdo/start?next=${encodeURIComponent(next)}${termsQuery}`;
 }
 
 export function getAuthSession() {

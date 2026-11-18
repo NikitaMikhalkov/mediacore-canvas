@@ -95,6 +95,45 @@ func registerAuthProfileRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, gin.H{"user": result})
 	})
+	profile.POST("/reauth-code", func(c *gin.Context) {
+		if !securityWrite(c) {
+			return
+		}
+		policy, available := loadRuntimePolicy(c, svc)
+		if !available || !enforceRateLimit(c, "profile-reauth-code:"+actor(c).ID, policy.Request.EmailCodePerHour, time.Hour) {
+			return
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2<<10)
+		var req struct {
+			Method string `json:"method"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			failService(c, service.BadAuthRequest("验证参数无效"))
+			return
+		}
+		result, err := svc.StartProfileReauthentication(c.Request.Context(), actor(c), sessionCookie(c), req.Method)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, result)
+	})
+	profile.POST("/reauth", func(c *gin.Context) {
+		if !securityWrite(c) {
+			return
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2<<10)
+		var req service.VerificationConfirm
+		if err := c.ShouldBindJSON(&req); err != nil {
+			failService(c, service.BadAuthRequest("验证参数无效"))
+			return
+		}
+		if err := svc.ConfirmProfileReauthentication(actor(c), sessionCookie(c), req); err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, gin.H{"verified": true})
+	})
 	profile.POST("/password", func(c *gin.Context) {
 		if !securityWrite(c) {
 			return
@@ -150,16 +189,5 @@ func registerAuthProfileRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		clearSessionCookie(c)
 		ok(c, result)
-	})
-	profile.GET("/linuxdo/start", func(c *gin.Context) {
-		if !enforceRateLimit(c, "profile-linuxdo-reauth:"+actor(c).ID, 10, 10*time.Minute) {
-			return
-		}
-		target, err := svc.BeginLinuxDOReauthentication(actor(c), sessionCookie(c))
-		if err != nil {
-			failService(c, err)
-			return
-		}
-		c.Redirect(http.StatusFound, target)
 	})
 }

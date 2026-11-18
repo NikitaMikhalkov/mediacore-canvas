@@ -72,33 +72,6 @@ func TestProfilePasswordConcurrentChangeUsesCredentialCompare(t *testing.T) {
 	}
 }
 
-func TestLinuxDOReauthenticationPersistsAcrossSessionTimezones(t *testing.T) {
-	for _, offset := range []int{-12, 14} {
-		t.Run(time.FixedZone("session", offset*3600).String(), func(t *testing.T) {
-			db, _ := profileRepositoryDB(t)
-			now := time.Now().UTC()
-			u := &model.User{ID: "one", Username: "one", Status: model.UserStatusActive}
-			session := &model.AuthSession{ID: "session", UserID: u.ID, TokenHash: "token", ExpiresAt: now.Add(time.Hour).In(time.FixedZone("session", offset*3600))}
-			identity := &model.UserIdentity{ID: "identity", UserID: u.ID, Provider: "linuxdo", Subject: "subject"}
-			for _, row := range []any{u, session, identity} {
-				if err := db.Create(row).Error; err != nil {
-					t.Fatal(err)
-				}
-			}
-			if err := New(db).ReauthenticateLinuxDOSession(u, session, identity.Subject, now); err != nil {
-				t.Fatal(err)
-			}
-			var stored model.AuthSession
-			if err := db.First(&stored, "id = ?", session.ID).Error; err != nil {
-				t.Fatal(err)
-			}
-			if stored.ReauthenticatedAt == nil || !stored.ReauthenticatedAt.Equal(now) {
-				t.Fatal("successful reauthentication did not persist its timestamp")
-			}
-		})
-	}
-}
-
 func TestProfileEmailConcurrentCanonicalCollisionDoesNotConsumeLoser(t *testing.T) {
 	db, dsn := profileRepositoryDB(t)
 	now := time.Now()
@@ -239,5 +212,33 @@ func TestProfilePasswordRevocationSerializesWithConcurrentSessionIssuance(t *tes
 	}
 	if count != 0 {
 		t.Fatalf("sessions surviving concurrent revocation=%d", count)
+	}
+}
+
+// Email change accepts the current password only: a fresh reauth marker never
+// authorizes it for a passwordless account.
+func TestProfileEmailChangeIgnoresReauthMarker(t *testing.T) {
+	db, _ := profileRepositoryDB(t)
+	now := time.Now()
+	marker := now.Add(-time.Minute)
+	u := &model.User{ID: "one", Username: "one", Email: "old@example.com", Status: model.UserStatusActive}
+	session := &model.AuthSession{ID: "session", UserID: u.ID, TokenHash: "token", ExpiresAt: now.Add(time.Hour), ReauthenticatedAt: &marker}
+	v := &model.AuthVerification{ID: "ticket", Purpose: "profile_email", UserID: u.ID, SessionID: session.ID, Email: "new@example.com", CredentialHash: ProfileCredentialHash(""), Ready: true, ExpiresAt: now.Add(time.Hour)}
+	for _, row := range []any{u, session, v} {
+		if err := db.Create(row).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := New(db).ChangeProfileEmail(u, session, v, now); !errors.Is(err, ErrProfileAuthorization) {
+		t.Fatalf("marker accepted for email change: %v", err)
+	}
+	var stored model.User
+	var ticket model.AuthVerification
+	var count int64
+	db.First(&stored, "id = ?", u.ID)
+	db.First(&ticket, "id = ?", v.ID)
+	db.Model(&model.AuthSession{}).Count(&count)
+	if stored.Email != u.Email || ticket.UsedAt != nil || count != 1 {
+		t.Fatal("rejected change had side effects")
 	}
 }
