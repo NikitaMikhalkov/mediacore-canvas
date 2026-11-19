@@ -9,6 +9,11 @@ type AdapterResult = { status: number; body: unknown };
 // 直传失败的分类是这条边界的全部价值：permanent 决定调用方是当场报错还是退回本机等待重传。
 async function uploadWith(result: AdapterResult | Error) {
     const previous = apiClient.defaults.adapter;
+    // axios 在请求失败时会用 Error.captureStackTrace({}) 补调用栈；Bun（Linux）只接受 Error 对象，
+    // 抛出的 "First argument must be an Error object" 会顶替真实失败。浏览器没有这个 API，
+    // 测试按浏览器行为屏蔽它，否则测到的是 Bun 的栈实现而不是上传失败分类。
+    const captureStackTrace = Object.getOwnPropertyDescriptor(Error, "captureStackTrace");
+    Object.defineProperty(Error, "captureStackTrace", { configurable: true, value: undefined });
     apiClient.defaults.adapter = async (config) => {
         if (result instanceof Error) throw result;
         if (result.status >= 400) {
@@ -26,6 +31,7 @@ async function uploadWith(result: AdapterResult | Error) {
         return await uploadResourceFile(new Blob(["x"], { type: "image/png" }), "image", { fileName: "x.png" });
     } finally {
         apiClient.defaults.adapter = previous;
+        if (captureStackTrace) Object.defineProperty(Error, "captureStackTrace", captureStackTrace);
     }
 }
 
